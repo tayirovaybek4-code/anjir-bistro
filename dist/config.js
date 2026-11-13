@@ -1,0 +1,1 @@
+window.BOOKING_ENDPOINT = "";
