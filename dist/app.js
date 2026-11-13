@@ -189,8 +189,9 @@ function showConfirmation(booking, table, result) {
     : "Bizni tanlaganingiz uchun katta rahmat! Tashrifingiz maroqli o‘tsin. Sizni dasturxonimiz atrofida yana ko‘rishdan xursand bo‘lamiz.";
   const details = byId("confirmation-details");
   details.replaceChildren();
-  const day = new Intl.DateTimeFormat("uz-UZ", {dateStyle:"long",timeZone:"Asia/Tashkent"})
-    .format(startAt(booking.day,booking.hour));
+  const [year, month, dateNumber] = booking.day.split("-").map(Number);
+  const months = ["yanvar","fevral","mart","aprel","may","iyun","iyul","avgust","sentabr","oktabr","noyabr","dekabr"];
+  const day = dateNumber + "-" + months[month - 1] + ", " + year;
   for (const [label,value] of [["Sana",day],["Vaqt",booking.hour],
     ["Joy",table.name + "-stol · " + (table.row || Math.ceil(table.id/3)) + "-qator"],
     ["Mehmonlar",booking.guests + " kishi"]]) {
