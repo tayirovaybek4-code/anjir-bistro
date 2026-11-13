@@ -116,6 +116,7 @@ async function refresh(message = "", autoNext = false) {
       document.title = data.site.brand + " — Menyu va stol band qilish";
     }
     if (data.site?.heading) byId("hero-title").textContent = data.site.heading;
+    renderLocation(data.site?.location);
     const hero = byId("hero-title").closest(".hero");
     if (data.site?.hero) {
       try {
@@ -180,6 +181,15 @@ byId("booking").onsubmit = async event => {
   submitting = false;
   await refresh(message);
 };
+
+function renderLocation(location = {}) {
+  const address = location.address || "";
+  byId("location-address").textContent = address || "Restoranning aniq manzili tez orada qo‘shiladi.";
+  const query = encodeURIComponent(address || "Tashkent");
+  byId("map-yandex").href = location.yandex || "https://yandex.uz/maps/?text=" + query;
+  byId("map-gis").href = location.gis || "https://2gis.uz/search/" + query;
+  byId("map-google").href = location.google || "https://www.google.com/maps/search/?api=1&query=" + query;
+}
 
 function showConfirmation(booking, table, result,bookingId) {
   const cancel = byId("cancel-confirmed-booking");

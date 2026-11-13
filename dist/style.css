@@ -61,6 +61,13 @@ input,select{width:100%;min-width:0;height:42px;border:1px solid var(--line);bor
 footer{padding:24px 0;font-size:12px}
 dialog{color:var(--ink);width:min(460px,calc(100% - 32px));max-height:80vh}
 dialog::backdrop{background:#23251c88}
+.location-section{margin-block:32px}
+.location-card{padding:clamp(20px,4vw,38px);background:var(--paper);border:1px solid var(--line);border-radius:16px}
+.location-card h2{margin:0 0 6px}
+.location-card p{margin:0 0 18px;overflow-wrap:anywhere}
+.map-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(145px,100%),1fr));gap:10px}
+.map-links a{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding:10px 13px;border:1px solid var(--line);border-radius:8px;color:var(--ink);text-decoration:none;font-weight:650}
+.map-links a:hover,.map-links a:focus-visible{border-color:#63242a;background:#f1e5d9}
 .confirmation-close{position:sticky;top:0;z-index:1;display:flex;justify-content:flex-end;pointer-events:none}
 .confirmation-close button{background:var(--paper);pointer-events:auto;min-height:44px}
 .confirmation-actions{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px}

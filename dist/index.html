@@ -4,7 +4,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Zarafshon — Menyu va stol band qilish</title>
 <meta name="description" content="Anjir Bistro zal xaritasidan stol tanlang va tashrifingizni rejalashtiring.">
-<link rel="stylesheet" href="style.css?v=20261114-2">
+<link rel="stylesheet" href="style.css?v=location">
 <header class="site-header">
   <div class="shell header-inner">
     <a class="brand" href="./" id="brand-name">Zarafshon</a>
@@ -57,7 +57,18 @@
   </div>
   </section>
 </main>
-<footer class="shell"><span id="footer-brand">Zarafshon</span><a href="https://t.me/Aybek_Tairov_bot">Telegram orqali bron</a><a href="admin.html">Admin panel</a></footer>
+<section class="shell location-section" id="location" aria-labelledby="location-title">
+  <div class="location-card">
+    <h2 id="location-title">Manzil</h2>
+    <p id="location-address">Restoranning aniq manzili tez orada qo‘shiladi.</p>
+    <nav class="map-links" aria-label="Xaritada ochish">
+      <a id="map-yandex" href="https://yandex.uz/maps/10335/tashkent/" target="_blank" rel="noopener noreferrer">Yandex Maps <span aria-hidden="true">↗</span></a>
+      <a id="map-gis" href="https://2gis.uz/tashkent" target="_blank" rel="noopener noreferrer">2GIS <span aria-hidden="true">↗</span></a>
+      <a id="map-google" href="https://www.google.com/maps/search/?api=1&amp;query=Tashkent" target="_blank" rel="noopener noreferrer">Google Maps <span aria-hidden="true">↗</span></a>
+    </nav>
+  </div>
+</section>
+<footer class="shell"><span id="footer-brand">Zarafshon</span><a href="#location">Manzil</a><a href="https://t.me/Aybek_Tairov_bot">Telegram orqali bron</a><a href="admin.html">Admin panel</a></footer>
 <dialog id="reservations"><div class="card-top"><h2>Bronlarim</h2><form method="dialog"><button class="outline" aria-label="Yopish">✕</button></form></div><div id="reservation-list"></div></dialog>
 <dialog id="confirmation" aria-labelledby="confirmation-title">
   <form method="dialog" class="confirmation-close"><button class="outline" aria-label="Oynani yopish">✕ Yopish</button></form>
@@ -89,6 +100,6 @@
 <script src="dish-photos.js" defer></script>
 <script src="photos.js" defer></script>
 <script src="menu.js" defer></script>
-<script src="app.js?v=20261114-3" defer></script>
+<script src="app.js?v=location" defer></script>
 </html>
 

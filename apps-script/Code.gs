@@ -244,10 +244,11 @@ function loadMenu_() {
 
 function loadSite_() {
   const tab = sheet("Sayt");
-  const [,brand,heading,hero,deposit,confirmationTitle,confirmationNote,transferNote] =
-    tab ? tab.getRange("B1:B8").getValues().flat() : [];
+  const [,brand,heading,hero,deposit,confirmationTitle,confirmationNote,transferNote,address,yandex,gis,google] =
+    tab ? tab.getRange("B1:B12").getValues().flat() : [];
   return {
     brand,heading,hero:validImage_(hero) ? (hero || "") : "",
+    location:{address:String(address || ""),yandex:mapLink_(yandex),gis:mapLink_(gis),google:mapLink_(google)},
     deposit: Number.isSafeInteger(deposit) && deposit >= 0 && deposit <= 100000000 ? deposit : 100000,
     confirmationTitle:confirmationTitle || "Sizni kutib qolamiz!",
     confirmationNote:confirmationNote || "Bizni tanlaganingiz uchun katta rahmat! Tashrifingiz maroqli o‘tsin. Sizni dasturxonimiz atrofida yana ko‘rishdan xursand bo‘lamiz.",
@@ -398,6 +399,11 @@ function saveSite_(active,site) {
   try {
     const tab = active.getSheetByName("Sayt") || active.insertSheet("Sayt");
     const current = loadSite_();
+    const address = String(site.address ?? current.location.address).trim();
+    const links = ["yandex","gis","google"].map(field => String(site[field] ?? current.location[field]).trim());
+    if (address.length > 250 || links.some(link => link && !mapLink_(link))) {
+      throw Error("Manzil va HTTPS xarita havolalarini tekshiring.");
+    }
     const deposit = String(site.deposit ?? current.deposit).trim();
     const confirmationTitle = String(site.confirmationTitle ?? current.confirmationTitle).trim();
     const confirmationNote = String(site.confirmationNote ?? current.confirmationNote).trim();
@@ -406,13 +412,19 @@ function saveSite_(active,site) {
       confirmationTitle.length > 90 || !confirmationNote || confirmationNote.length > 500 ||
       !transferNote || transferNote.length > 500) throw Error("Depozit va matnlarni tekshiring.");
     const savedHero = site.upload ? storePhoto_(active,site.upload) : hero;
-    tab.getRange("A1:B8").setValues([["Sozlama","Qiymat"],["Nom",plain_(brand)],["Sarlavha",plain_(heading)],["Rasm",savedHero],
-      ["Depozit",Number(deposit)],["Tasdiq sarlavhasi",plain_(confirmationTitle)],["Tasdiq matni",plain_(confirmationNote)],["O‘tkazma matni",plain_(transferNote)]]);
+    tab.getRange("A1:B12").setValues([["Sozlama","Qiymat"],["Nom",plain_(brand)],["Sarlavha",plain_(heading)],["Rasm",savedHero],
+      ["Depozit",Number(deposit)],["Tasdiq sarlavhasi",plain_(confirmationTitle)],["Tasdiq matni",plain_(confirmationNote)],["O‘tkazma matni",plain_(transferNote)],
+      ["Manzil",plain_(address)],["Yandex Maps",links[0]],["2GIS",links[1]],["Google Maps",links[2]]]);
     SpreadsheetApp.flush();
   } finally {
     lock.releaseLock();
   }
   return loadSite_();
+}
+
+function mapLink_(value) {
+  const link = String(value || "");
+  return link.length <= 1500 && /^https:\/\/[a-z0-9.-]+(?::\d+)?(?:[/?#][^\s]*)?$/i.test(link) ? link : "";
 }
 
 function plain_(text) {
