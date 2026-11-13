@@ -61,6 +61,14 @@ input,select{width:100%;min-width:0;height:42px;border:1px solid var(--line);bor
 footer{padding:24px 0;font-size:12px}
 dialog{color:var(--ink);width:min(460px,calc(100% - 32px));max-height:80vh}
 dialog::backdrop{background:#23251c88}
+#card-transfer{margin:16px 0;padding:16px;border:1px solid var(--line);border-radius:12px}
+#card-transfer h3,#card-transfer p{margin:0 0 9px}
+#card-transfer #transfer-feedback{margin:10px 0 0}
+.transfer-providers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px}
+.transfer-button{box-sizing:border-box;display:flex;justify-content:center;align-items:center;gap:8px;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);font:600 15px/1.3 system-ui,sans-serif;text-decoration:none;text-align:center;cursor:pointer}
+.transfer-button:hover{border-color:currentColor}
+.transfer-button img{width:24px;height:24px;object-fit:contain;border-radius:4px}
+.transfer-copy{width:100%;background:#63242a;color:#fffaf4}
 .record{display:flex;gap:12px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding:12px 0}
 .record p{font-size:13px;color:var(--muted);margin-top:4px}
 #reservation-list{margin-top:16px}
