@@ -138,12 +138,13 @@ byId("booking").onsubmit = async event => {
   feedback.textContent = "Bron saqlanmoqda…";
   let message;
   try {
-    await api({...booking,id:retryId});
-    const record = {id:retryId,table:table.name,day:booking.day,hour:booking.hour,guests:booking.guests};
+    const result = await api({...booking,id:retryId});
+    const record = {id:retryId,table:table.name,day:booking.day,hour:booking.hour,guests:booking.guests,status:result.status};
     remember([...history().filter(item => item.id !== record.id),record]);
     retryData = null;
     selected = null;
     message = "Stol " + table.name + " · " + booking.day + " soat " + booking.hour + " ga band qilindi.";
+    if (result.status === "Kutilmoqda") message = "Bron so‘rovi yuborildi. Admin tasdig‘ini «Bronlarim» bo‘limida tekshiring.";
   } catch (error) {
     message = error.message;
   }
@@ -163,6 +164,15 @@ function renderHistory() {
     title.textContent = "Stol " + record.table + " · " + record.guests + " kishi";
     const when = document.createElement("p");
     when.textContent = record.day + " · " + record.hour;
+    if (record.status) {
+      when.textContent += " · " + record.status;
+      api({action:"status",id:record.id}).then(result => {
+        when.textContent = record.day + " · " + record.hour + " · " + result.status;
+        if (!["Band","Kutilmoqda"].includes(result.status)) row.querySelector("button")?.remove();
+      }).catch(() => {
+        when.textContent += " · Holat yangilanmadi";
+      });
+    }
     details.append(title, when);
     row.append(details);
     if (startAt(record.day,record.hour) > Date.now()) {
