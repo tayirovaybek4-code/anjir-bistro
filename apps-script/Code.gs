@@ -34,12 +34,16 @@ function json(data) {
   return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }
 
+function holdsTable_(record) {
+  return record.status === "Band" || record.status === "Kutilmoqda";
+}
+
 function doGet(event) {
   try {
     const settings = config();
     const day = event.parameter.day;
     const busy = /^\d{4}-\d{2}-\d{2}$/.test(day || "") ? records(sheet("Bronlar"))
-      .filter(r=>r.status==="Band" && r.day===day)
+      .filter(r=>holdsTable_(r) && r.day===day)
       .map(({table,start,duration})=>({table,start,duration})) : [];
     return json({ok:true,settings,busy});
   } catch (error) {
@@ -58,13 +62,17 @@ function doPost(event) {
     const rows = records(tab);
     if (!/^[a-f0-9-]{36}$/.test(input.id || "")) return json({ok:false,error:"Bron kodi yaroqsiz."});
     const existing = rows.find(r=>r.id===input.id);
+    if (input.action === "status") {
+      return existing ? json({ok:true,status:existing.status}) : json({ok:false,error:"Bron topilmadi."});
+    }
     if (input.action==="cancel") {
-      if (!existing || existing.start<=Date.now()) return json({ok:false,error:"Bu bronni bekor qilib bo‘lmaydi."});
+      if (existing?.status === "Bekor qilingan") return json({ok:true});
+      if (!existing || !holdsTable_(existing) || existing.start<=Date.now()) return json({ok:false,error:"Bu bronni bekor qilib bo‘lmaydi."});
       tab.getRange(existing.row,9).setValue("Bekor qilingan");
       SpreadsheetApp.flush();
       return json({ok:true});
     }
-    if (existing) return json({ok:existing.status==="Band",error:"Bron kodi ishlatilgan."});
+    if (existing) return json({ok:holdsTable_(existing),status:existing.status,error:"Bron kodi ishlatilgan."});
     const settings = config();
     const start = startAt(input.day,input.hour);
     const table = settings.tables.find(t=>t.id===input.table);
@@ -77,19 +85,20 @@ function doPost(event) {
       || !/^\+?[\d ()-]{7,24}$/.test(phone) || phone.replace(/\D/g,"").length<7) {
       return json({ok:false,error:"Bron ma’lumotlarini tekshiring."});
     }
-    if (rows.some(r=>r.table===table.id && r.status==="Band" &&
+    if (rows.some(r=>r.table===table.id && holdsTable_(r) &&
       r.start<start+settings.duration*60000 && start<r.start+r.duration*60000)) {
       return json({ok:false,error:"Bu vaqtga stol band. Boshqa vaqtni tanlang."});
     }
     const row = tab.getRange(tab.getLastRow()+1,1,1,10);
     row.setNumberFormats([["@","@","@","@","0","0","@","@","@","0"]]);
     const safeName = /^[=+@-]/.test(name) ? "'"+name : name;
-    row.setValues([[input.id,new Date().toISOString(),input.day,input.hour,table.id,input.guests,safeName,"'"+phone,"Band",settings.duration]]);
+    const status = PropertiesService.getScriptProperties().getProperty("TELEGRAM_APPROVALS") === "on" ? "Kutilmoqda" : "Band";
+    row.setValues([[input.id,new Date().toISOString(),input.day,input.hour,table.id,input.guests,safeName,"'"+phone,status,settings.duration]]);
     SpreadsheetApp.flush();
     lock.releaseLock();
     lock = null;
-    notifyNewBooking_({ day: input.day, hour: input.hour, table: table.name, guests: input.guests });
-    return json({ok:true});
+    notifyNewBooking_({ id: input.id, status, day: input.day, hour: input.hour, table: table.name, guests: input.guests });
+    return json({ok:true,status});
   } catch (error) {
     console.error(error);
     return json({ok:false,error:"Bronni saqlab bo‘lmadi. Qayta urinib ko‘ring."});
@@ -118,7 +127,11 @@ function notifyNewBooking_(booking) {
           booking.day + " · " + booking.hour
         ].join("\n"),
         reply_markup: {
-          inline_keyboard: [[{
+          inline_keyboard: [
+            ...(booking.status === "Kutilmoqda" ? [[
+              {text:"Tasdiqlash",callback_data:"approve:"+booking.id},
+              {text:"Rad etish",callback_data:"reject:"+booking.id}
+            ]] : []), [{
             text: "Bronlar jadvalini ochish",
             url: "https://docs.google.com/spreadsheets/d/" + sheetId + "/edit"
           }]]
@@ -131,6 +144,72 @@ function notifyNewBooking_(booking) {
   } catch {
     console.warn("Telegram xabari yuborilmadi.");
   }
+}
+
+function enableTelegramApprovals() {
+  const properties = PropertiesService.getScriptProperties();
+  if (!properties.getProperty("TELEGRAM_BOT_TOKEN") || !/^\d+$/.test(properties.getProperty("TELEGRAM_CHAT_ID") || "")) {
+    throw new Error("Avval Telegram shaxsiy chatini ulang.");
+  }
+  if (!ScriptApp.getProjectTriggers().some(trigger => trigger.getHandlerFunction() === "pollTelegramApprovals_")) {
+    ScriptApp.newTrigger("pollTelegramApprovals_").timeBased().everyMinutes(1).create();
+  }
+  properties.setProperty("TELEGRAM_APPROVALS", "on");
+}
+
+function pollTelegramApprovals_() {
+  const properties = PropertiesService.getScriptProperties();
+  const token = properties.getProperty("TELEGRAM_BOT_TOKEN");
+  const admin = properties.getProperty("TELEGRAM_CHAT_ID");
+  if (!token || !admin) return;
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) return;
+  try {
+    const offset = Number(properties.getProperty("TELEGRAM_UPDATE_OFFSET") || 0);
+    const updates = telegramApprovalApi_(token,"getUpdates",{offset,allowed_updates:["callback_query"],limit:20});
+    const tab = sheet("Bronlar");
+    for (const update of updates) {
+      const callback = update.callback_query;
+      if (callback && String(callback.from.id) === admin && String(callback.message?.chat?.id) === admin) {
+        const action = /^(approve|reject):([a-f0-9-]{36})$/.exec(callback.data || "");
+        if (action) {
+          const record = records(tab).find(item => item.id === action[2]);
+          let status = record?.status || "Bron topilmadi";
+          if (record?.status === "Kutilmoqda" && record.start > Date.now()) {
+            status = action[1] === "approve" ? "Band" : "Rad etildi";
+            tab.getRange(record.row,9).setValue(status);
+            SpreadsheetApp.flush();
+          } else if (status === "Kutilmoqda") {
+            status = "Bron vaqti o‘tgan";
+          }
+          try {
+            telegramApprovalApi_(token,"answerCallbackQuery",{callback_query_id:callback.id,text:status});
+          } catch {
+            // Telegram may expire the popup before the scheduled poll runs.
+          }
+          telegramApprovalApi_(token,"editMessageText",{
+            chat_id:admin,message_id:callback.message.message_id,
+            text:callback.message.text.split("\nHolat · ")[0]+"\nHolat · "+status,
+            reply_markup:{inline_keyboard:callback.message.reply_markup?.inline_keyboard?.filter(row => row.every(button => button.url)) || []}
+          });
+        }
+      }
+      properties.setProperty("TELEGRAM_UPDATE_OFFSET",String(update.update_id+1));
+    }
+  } catch {
+    console.warn("Telegram bron qarorini qayta ishlashda xato.");
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function telegramApprovalApi_(token, method, payload) {
+  const response = UrlFetchApp.fetch("https://api.telegram.org/bot"+token+"/"+method,{
+    method:"post",contentType:"application/json",muteHttpExceptions:true,payload:JSON.stringify(payload)
+  });
+  const body = JSON.parse(response.getContentText());
+  if (!body.ok && !String(body.description).includes("message is not modified")) throw new Error("Telegram API xatosi.");
+  return body.result;
 }
 
 function onOpen() {
