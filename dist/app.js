@@ -170,7 +170,7 @@ byId("booking").onsubmit = async event => {
     byId("order-feedback").textContent = "";
     byId("order-link").hidden = true;
     selected = null;
-    showConfirmation(booking, table, result);
+    showConfirmation(booking, table, result,record.id);
     message = "Stol " + table.name + " · " + booking.day + " soat " + booking.hour + " ga band qilindi.";
     if (booking.order.length) message += " Taom buyurtmangiz ham saqlandi.";
     if (result.status === "Kutilmoqda") message = "Bron so‘rovi yuborildi. Admin tasdig‘ini «Bronlarim» bo‘limida tekshiring.";
@@ -181,12 +181,29 @@ byId("booking").onsubmit = async event => {
   await refresh(message);
 };
 
-function showConfirmation(booking, table, result) {
+function showConfirmation(booking, table, result,bookingId) {
+  const cancel = byId("cancel-confirmed-booking");
+  const cancelFeedback = byId("confirmation-cancel-feedback");
+  cancel.disabled = false;
+  cancelFeedback.textContent = "";
+  cancel.onclick = async () => {
+    if (!window.confirm("Shu bronni bekor qilasizmi?")) return;
+    cancel.disabled = true;
+    try {
+      await api({action:"cancel",id:bookingId});
+      remember(history().filter(item => item.id !== bookingId));
+      byId("confirmation").close();
+      refresh("Bron bekor qilindi.");
+    } catch (error) {
+      cancelFeedback.textContent = error.message;
+      cancel.disabled = false;
+    }
+  };
   const pending = result.status === "Kutilmoqda";
-  byId("confirmation-title").textContent = pending ? "Bron so‘rovingiz qabul qilindi" : "Sizni kutib qolamiz!";
+  byId("confirmation-title").textContent = pending ? "Bron so‘rovingiz qabul qilindi" : (result.site?.confirmationTitle || "Sizni kutib qolamiz!");
   byId("confirmation-note").textContent = pending
     ? "Bizni tanlaganingiz uchun katta rahmat! Tasdiqni «Bronlarim» bo‘limida ko‘rishingiz mumkin."
-    : "Bizni tanlaganingiz uchun katta rahmat! Tashrifingiz maroqli o‘tsin. Sizni dasturxonimiz atrofida yana ko‘rishdan xursand bo‘lamiz.";
+    : (result.site?.confirmationNote || "Bizni tanlaganingiz uchun katta rahmat! Tashrifingiz maroqli o‘tsin. Sizni dasturxonimiz atrofida yana ko‘rishdan xursand bo‘lamiz.");
   const details = byId("confirmation-details");
   details.replaceChildren();
   const [year, month, dateNumber] = booking.day.split("-").map(Number);
@@ -219,10 +236,11 @@ function showConfirmation(booking, table, result) {
   const transfer = result.transfer;
   byId("card-transfer").hidden = !transfer;
   if (transfer) {
-    byId("transfer-total").textContent = "Depozit va taomlar uchun jami · " + money(transfer.total);
+    byId("transfer-total").textContent = transfer.deposit === undefined ? "Jami · " + money(transfer.total)
+      : "Depozit · " + money(transfer.deposit) + " · Taomlar · " + money(transfer.food) + " · Jami · " + money(transfer.total);
     byId("transfer-card").textContent = transfer.card.match(/.{4}/g).join(" ");
     const feedback = byId("transfer-feedback");
-    feedback.textContent = "Raqamni ilovadagi oluvchi maydoniga joylang. Restoran o‘tkazmani tekshirib tasdiqlaydi.";
+    feedback.textContent = result.site?.transferNote || "Raqamni ilovadagi oluvchi maydoniga joylang. Restoran o‘tkazmani tekshirib tasdiqlaydi.";
     byId("copy-card").onclick = async () => {
       try {
         await navigator.clipboard.writeText(transfer.card);

@@ -168,7 +168,7 @@ login.onsubmit = event => {
       const data = await request("admin.list");
       renderBookings(data.bookings);
       renderMenu(data.menu);
-      fill(siteForm,{brand:"Zarafshon",heading:"Parij ta’mi, Toshkentda",...data.site});
+      fill(siteForm,{...data.site,brand:data.site?.brand || "Zarafshon",heading:data.site?.heading || "Parij ta’mi, Toshkentda"});
       preview(siteForm,"hero",byId("hero-preview"));
       login.reset();
       byId("login").hidden = true;

@@ -104,7 +104,8 @@ function doPost(event) {
     lock.releaseLock();
     lock = null;
     notifyNewBooking_({ id: input.id, status, day: input.day, hour: input.hour, table: table.name, guests: input.guests });
-    return json({ok:true,status,preorder,transfer:cardTransfer_(preorder)});
+    const site = loadSite_();
+    return json({ok:true,status,preorder,site,transfer:cardTransfer_(preorder,site)});
   } catch (error) {
     console.error(error);
     return json({ok:false,error:"Bronni saqlab bo‘lmadi. Qayta urinib ko‘ring."});
@@ -243,9 +244,15 @@ function loadMenu_() {
 
 function loadSite_() {
   const tab = sheet("Sayt");
-  if (!tab) return {};
-  const [,brand,heading,hero] = tab.getRange("B1:B4").getDisplayValues().flat();
-  return {brand,heading,hero:validImage_(hero) ? hero : ""};
+  const [,brand,heading,hero,deposit,confirmationTitle,confirmationNote,transferNote] =
+    tab ? tab.getRange("B1:B8").getValues().flat() : [];
+  return {
+    brand,heading,hero:validImage_(hero) ? (hero || "") : "",
+    deposit: Number.isSafeInteger(deposit) && deposit >= 0 && deposit <= 100000000 ? deposit : 100000,
+    confirmationTitle:confirmationTitle || "Sizni kutib qolamiz!",
+    confirmationNote:confirmationNote || "Bizni tanlaganingiz uchun katta rahmat! Tashrifingiz maroqli o‘tsin. Sizni dasturxonimiz atrofida yana ko‘rishdan xursand bo‘lamiz.",
+    transferNote:transferNote || "Raqamni ilovadagi oluvchi maydoniga joylang. Mablag‘ yetmasa, oynaga qaytib, bronni bekor qilishingiz mumkin."
+  };
 }
 
 function validateOrder_(order) {
@@ -266,7 +273,7 @@ function validateOrder_(order) {
 
 function paymentQuote_(order) {
   const preorder = validateOrder_(order);
-  const deposit = 100000;
+  const deposit = loadSite_().deposit;
   const food = preorder?.total ?? 0;
   if (!Number.isSafeInteger(food) || food < 0 || !Number.isSafeInteger((food + deposit) * 100)) {
     throw Error("Buyurtma summasini hisoblab bo‘lmadi.");
@@ -274,10 +281,11 @@ function paymentQuote_(order) {
   return {deposit,food,total:food + deposit,totalTiyin:(food + deposit) * 100};
 }
 
-function cardTransfer_(preorder) {
+function cardTransfer_(preorder,site) {
   const card = PropertiesService.getScriptProperties().getProperty("TRANSFER_CARD") || "";
   if (!/^\d{16}$/.test(card)) return null;
-  return {card, total:100000 + (preorder?.total ?? 0)};
+  const food = preorder?.total ?? 0;
+  return {card,deposit:site.deposit,food,total:site.deposit + food};
 }
 
 function adminSpreadsheet_() {
@@ -389,8 +397,17 @@ function saveSite_(active,site) {
   lock.waitLock(10000);
   try {
     const tab = active.getSheetByName("Sayt") || active.insertSheet("Sayt");
+    const current = loadSite_();
+    const deposit = String(site.deposit ?? current.deposit).trim();
+    const confirmationTitle = String(site.confirmationTitle ?? current.confirmationTitle).trim();
+    const confirmationNote = String(site.confirmationNote ?? current.confirmationNote).trim();
+    const transferNote = String(site.transferNote ?? current.transferNote).trim();
+    if (!/^\d+$/.test(deposit) || Number(deposit) > 100000000 || !confirmationTitle ||
+      confirmationTitle.length > 90 || !confirmationNote || confirmationNote.length > 500 ||
+      !transferNote || transferNote.length > 500) throw Error("Depozit va matnlarni tekshiring.");
     const savedHero = site.upload ? storePhoto_(active,site.upload) : hero;
-    tab.getRange("A1:B4").setValues([["Sozlama","Qiymat"],["Nom",plain_(brand)],["Sarlavha",plain_(heading)],["Rasm",savedHero]]);
+    tab.getRange("A1:B8").setValues([["Sozlama","Qiymat"],["Nom",plain_(brand)],["Sarlavha",plain_(heading)],["Rasm",savedHero],
+      ["Depozit",Number(deposit)],["Tasdiq sarlavhasi",plain_(confirmationTitle)],["Tasdiq matni",plain_(confirmationNote)],["O‘tkazma matni",plain_(transferNote)]]);
     SpreadsheetApp.flush();
   } finally {
     lock.releaseLock();

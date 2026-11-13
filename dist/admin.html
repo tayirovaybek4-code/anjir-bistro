@@ -8,7 +8,7 @@
 <script src="config.js" defer></script>
 <script src="photos.js" defer></script>
 <script src="dish-photos.js" defer></script>
-<script src="admin.js" defer></script>
+<script src="admin.js?v=deposit" defer></script>
 <header><a class="brand" href="./">ZARAFSHON</a><a href="./">Restoran sayti ↗</a></header>
 <main>
 <section id="login" class="card login">
@@ -53,6 +53,10 @@
     <h2>Sayt ko‘rinishi</h2><form id="site-form" class="fields">
       <label>Restoran nomi<input name="brand" required maxlength="45"></label>
       <label>Bosh sarlavha<input name="heading" required maxlength="120"></label>
+      <label>Bron depoziti, so‘m<input name="deposit" type="number" min="0" max="100000000" step="1" required></label>
+      <label>Bron tasdig‘i sarlavhasi<input name="confirmationTitle" maxlength="90" required></label>
+      <label class="wide">Bron tasdig‘i matni<textarea name="confirmationNote" maxlength="500" required></textarea></label>
+      <label class="wide">O‘tkazma yo‘riqnomasi<textarea name="transferNote" maxlength="500" required></textarea></label>
       <input name="hero" type="hidden">
       <label class="wide">Muqova rasmi<input name="file" type="file" accept="image/*"></label>
       <img class="preview" id="hero-preview" alt="Muqova rasmi" hidden>
