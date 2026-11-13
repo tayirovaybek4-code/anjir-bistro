@@ -89,6 +89,7 @@ nav a:hover,footer a:hover{text-decoration:underline}
 .menu-featured,.menu-items{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
 .menu-featured article,.menu-items article{background:var(--paper);border:1px solid var(--line);border-radius:4px;overflow:hidden}
 .menu-featured img{display:block;width:100%;height:clamp(156px,18vw,290px);object-fit:cover;background:#e5d6c4}
+.menu-items img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;background:#e5d6c4}
 .dish-content{padding:15px 17px;display:grid;gap:8px}
 .dish-content h3{margin:0;font:600 20px var(--serif);color:var(--green);overflow-wrap:anywhere}
 .dish-content .outline{justify-self:start}
@@ -126,3 +127,4 @@ footer{margin-top:35px!important;border-top:1px solid var(--line)}
 #confirmation form{margin-top:16px}
 @media(max-width:740px){.layout{grid-template-columns:1fr}.menu-items{grid-template-columns:repeat(2,minmax(0,1fr))}.header-inner::after{display:none}.hero{background-position:58% center}.hero h1{max-width:9em}.menu-featured{gap:8px}.menu-featured .dish-content{padding:9px}.menu-featured .dish-content h3{font-size:15px}.menu-featured .outline{padding:5px;font-size:12px}}
 @media(max-width:450px){.header-inner{min-height:65px;gap:8px}.brand{letter-spacing:.07em;font-size:19px}nav a{font-size:13px}.hero{min-height:390px}.menu-featured img{height:110px}.menu-featured .dish-content p{font-size:12px}.menu-items{grid-template-columns:1fr}.reservation-intro{align-items:flex-start}.table{min-height:75px}}
+

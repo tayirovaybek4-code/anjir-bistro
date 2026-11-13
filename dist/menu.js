@@ -42,12 +42,19 @@ function renderOrder() {
 
 function dishCard(item, withPhoto) {
   const card = document.createElement("article");
-  if (withPhoto && item.image) {
+  const sources = [...new Set([item.image, ...(window.DISH_PHOTOS?.[item.id] || [])].filter(Boolean))];
+  if (withPhoto && sources.length) {
     const photo = document.createElement("img");
-    photo.src = item.image;
     photo.alt = item.name;
     photo.loading = "lazy";
-    photo.onerror = () => photo.remove();
+    photo.decoding = "async";
+    photo.referrerPolicy = "no-referrer";
+    let sourceIndex = 0;
+    photo.onerror = () => {
+      if (sources[++sourceIndex]) photo.src = sources[sourceIndex];
+      else photo.remove();
+    };
+    photo.src = sources[0];
     card.append(photo);
   }
   const content = document.createElement("div");
@@ -102,7 +109,8 @@ function renderMenu(items = menuItems) {
 }
 
 function showCategory() {
-  catalog.replaceChildren(...menuItems.filter(item => item.category === activeCategory).map(item => dishCard(item,false)));
+  catalog.replaceChildren(...menuItems.filter(item => item.category === activeCategory).map(item => dishCard(item,true)));
 }
 
 renderMenu();
+
