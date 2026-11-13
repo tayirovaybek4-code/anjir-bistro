@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="uz">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Zarafshon · Admin</title>
+<link rel="stylesheet" href="admin.css">
+<script src="config.js" defer></script>
+<script src="admin.js" defer></script>
+<header><a class="brand" href="./">ZARAFSHON</a><a href="./">Restoran sayti ↗</a></header>
+<main>
+<section id="login" class="card login">
+  <h1>Admin panel</h1><p>Bronlar, buyurtmalar va restoran menyusini boshqaring.</p>
+  <form id="login-form"><label>Kirish kaliti<input name="key" type="password" required autocomplete="off" spellcheck="false"></label><button>Kirish</button></form>
+  <p>Kalitni Google Sheets’da <b>Anjir Bistro → Admin panel</b> orqali yarating. <a href="https://docs.google.com/spreadsheets/d/1w66wvpzHCVMl_oZsdAoByPYR6PaHAVomnaLyABwDwYg/edit" target="_blank" rel="noopener">Jadvalni ochish ↗</a></p>
+</section>
+<section id="dashboard" hidden>
+  <div class="title"><h1>Restoran boshqaruvi</h1><button id="logout" class="light">Chiqish</button></div>
+  <nav aria-label="Boshqaruv bo‘limlari"><button data-panel="bookings" aria-pressed="true">Bron va buyurtmalar</button><button data-panel="menu" aria-pressed="false">Menyu</button><button data-panel="site" aria-pressed="false">Sayt ko‘rinishi</button></nav>
+  <section class="card" id="bookings">
+    <div class="title"><h2>Bron va buyurtmalar</h2><button class="light" id="refresh">Yangilash</button></div>
+    <label class="filter">Tashrif sanasi<input type="date" id="day"></label>
+    <p id="count"></p>
+    <div class="scroll"><table><thead><tr><th>Tashrif</th><th>Mehmon</th><th>Joy</th><th>Buyurtma</th><th>Holat</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </section>
+  <section class="card" id="menu" hidden>
+    <h2>Menyu</h2><label>Taom<select id="dish"></select></label>
+    <form id="dish-form" class="fields">
+      <label>Taom nomi<input name="name" required maxlength="180"></label>
+      <label>Bo‘lim<input name="category" required maxlength="80"></label>
+      <label>Narxi, so‘m<input name="price" type="number" min="0" required></label>
+      <label>Rasm havolasi<input name="image" maxlength="1500"></label>
+      <label class="wide">Tavsif<textarea name="description" maxlength="1000"></textarea></label>
+      <img id="preview" alt="Taom rasmi" hidden>
+      <label class="check wide"><input type="checkbox" name="visible"> Saytda ko‘rsatish</label>
+      <div><button>Taomni saqlash</button></div>
+    </form>
+  </section>
+  <section class="card" id="site" hidden>
+    <h2>Sayt ko‘rinishi</h2><form id="site-form" class="fields">
+      <label>Restoran nomi<input name="brand" required maxlength="45"></label>
+      <label>Bosh sarlavha<input name="heading" required maxlength="120"></label>
+      <label class="wide">Muqova rasmi havolasi<input name="hero" maxlength="1500"></label>
+      <div><button>Saqlash</button></div>
+    </form>
+  </section>
+</section>
+<p id="notice" role="status"></p>
+</main>
+</html>

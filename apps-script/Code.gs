@@ -57,6 +57,7 @@ function doPost(event) {
   let lock;
   try {
     const input = JSON.parse(event.postData.contents);
+    if (String(input.action).startsWith("admin.")) return adminRequest_(input);
     lock = LockService.getScriptLock();
     lock.waitLock(10000);
     const tab = sheet("Bronlar");
@@ -222,7 +223,7 @@ function onOpen() {
 }
 
 function openAdmin() {
-  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput("<!doctype html>\n<html lang=\"uz\">\n<meta charset=\"utf-8\">\n<style>\n*{box-sizing:border-box}body{margin:0;background:#f4ebe0;color:#39231d;font:14px system-ui}header{background:#621e25;color:#fff4e8;padding:20px 26px}h1{font:30px Georgia;margin:0}nav{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}button{cursor:pointer;border:1px solid #ad8973;border-radius:5px;padding:8px 12px;background:#fff7ec;color:#621e25;font:inherit}button[type=submit]{background:#621e25;color:white}main{padding:20px 26px}.panel{background:#fff9f1;border:1px solid #dbc5af;padding:18px;border-radius:7px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:grid;gap:5px;font-weight:600}input,select,textarea{width:100%;padding:8px;border:1px solid #c8aa92;border-radius:5px;background:white;font:inherit}textarea{resize:vertical}form button{margin-top:13px}label.check{display:flex;align-items:center}label.check input{width:auto}img{display:block;max-height:100px;max-width:100%;margin:8px 0}#status{min-height:20px;color:#621e25}[hidden]{display:none!important}@media(max-width:520px){.grid{grid-template-columns:1fr}}\n</style>\n<header><h1>Zarafshon</h1><nav>\n  <button type=\"button\" id=\"show-menu\">Menyu</button><button type=\"button\" id=\"show-site\">Sayt dizayni</button>\n  <button type=\"button\" data-tab=\"Bronlar\">Bron va buyurtmalar</button>\n  <button type=\"button\" data-tab=\"Stollar\">Stollar</button>\n  <button type=\"button\" data-tab=\"Sozlamalar\">Ish vaqti</button>\n</nav></header>\n<main>\n  <p id=\"status\" role=\"status\">Yuklanmoqda…</p>\n  <section class=\"panel\" id=\"menu-panel\">\n    <label>Taomni tanlang<select id=\"dish\"></select></label>\n    <form id=\"dish-form\">\n      <div class=\"grid\">\n        <label>Taom nomi<input name=\"name\" required maxlength=\"180\"></label>\n        <label>Bo‘lim<input name=\"category\" required maxlength=\"80\"></label>\n        <label>Narxi, so‘m<input name=\"price\" type=\"number\" min=\"0\" step=\"1\" required></label>\n        <label>Rasm manzili<input name=\"image\" placeholder=\"https://…\" maxlength=\"1500\"></label>\n      </div>\n      <img id=\"preview\" alt=\"Taom rasmi\" hidden>\n      <label>Tavsif<textarea name=\"description\" maxlength=\"1000\"></textarea></label>\n      <label class=\"check\"><input name=\"visible\" type=\"checkbox\"> Saytda ko‘rsatish</label>\n      <button>Taomni saqlash</button>\n    </form>\n  </section>\n  <section class=\"panel\" id=\"site-panel\" hidden>\n    <form id=\"site-form\">\n      <label>Restoran nomi<input name=\"brand\" required maxlength=\"45\"></label>\n      <label>Bosh sarlavha<input name=\"heading\" required maxlength=\"120\"></label>\n      <label>Bosh rasm manzili<input name=\"hero\" placeholder=\"https://…\" maxlength=\"1500\"></label>\n      <button>Saytni saqlash</button>\n    </form>\n  </section>\n</main>\n<script>\nconst byId = id => document.getElementById(id);\nconst form = byId(\"dish-form\");\nconst siteForm = byId(\"site-form\");\nconst status = byId(\"status\");\nlet menu = [];\nfunction fail(error) { status.textContent = error.message; }\nfunction fill(form, values) {\n  for (const field of form.elements) {\n    if (!field.name) continue;\n    if (field.type === \"checkbox\") field.checked = values[field.name] !== false;\n    else field.value = values[field.name] ?? \"\";\n  }\n}\nfunction showDish() {\n  fill(form, menu.find(item => item.id === byId(\"dish\").value) || {});\n  const photo = byId(\"preview\");\n  const image = form.elements.image.value;\n  photo.hidden = !image;\n  if (image) photo.src = image.startsWith(\"assets/\") ? \"https://tayirovaybek4-code.github.io/anjir-bistro/\" + image : image;\n}\nfunction showMenu(items, selected = \"\") {\n  menu = items;\n  byId(\"dish\").replaceChildren(new Option(\"Yangi taom\", \"\"), ...items.map(item => new Option(item.category + \" · \" + item.name,item.id)));\n  byId(\"dish\").value = selected;\n  showDish();\n}\nbyId(\"dish\").onchange = showDish;\nbyId(\"show-menu\").onclick = () => { byId(\"menu-panel\").hidden = false; byId(\"site-panel\").hidden = true; };\nbyId(\"show-site\").onclick = () => { byId(\"menu-panel\").hidden = true; byId(\"site-panel\").hidden = false; };\nfor (const button of document.querySelectorAll(\"[data-tab]\")) {\n  button.onclick = () => google.script.run.withFailureHandler(fail).withSuccessHandler(() => google.script.host.close()).adminTab(button.dataset.tab);\n}\nform.onsubmit = event => {\n  event.preventDefault();\n  const id = byId(\"dish\").value;\n  const item = {...Object.fromEntries(new FormData(form)), id, visible:form.elements.visible.checked};\n  status.textContent = \"Saqlanmoqda…\";\n  google.script.run.withFailureHandler(fail).withSuccessHandler(items => {\n    showMenu(items, id || items.at(-1)?.id);\n    status.textContent = \"Taom saqlandi.\";\n  }).adminSaveMenu(item);\n};\nsiteForm.onsubmit = event => {\n  event.preventDefault();\n  status.textContent = \"Saqlanmoqda…\";\n  google.script.run.withFailureHandler(fail).withSuccessHandler(site => {\n    fill(siteForm,site);\n    status.textContent = \"Sayt ma’lumotlari saqlandi.\";\n  }).adminSaveSite(Object.fromEntries(new FormData(siteForm)));\n};\ngoogle.script.run.withFailureHandler(fail).withSuccessHandler(data => {\n  showMenu(data.menu);\n  fill(siteForm,{brand:\"Zarafshon\",heading:\"Parij ta’mi, Toshkentda\",...data.site});\n  status.textContent = \"\";\n}).adminLoad();\n</script>\n</html>\n").setWidth(850).setHeight(650), "Zarafshon · Admin panel");
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput("<!doctype html>\n<html lang=\"uz\">\n<meta charset=\"utf-8\">\n<style>\n*{box-sizing:border-box}body{margin:0;background:#f4ebe0;color:#39231d;font:14px system-ui}header{background:#621e25;color:#fff4e8;padding:20px 26px}h1{font:30px Georgia;margin:0}nav{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}button{cursor:pointer;border:1px solid #ad8973;border-radius:5px;padding:8px 12px;background:#fff7ec;color:#621e25;font:inherit}button[type=submit]{background:#621e25;color:white}main{padding:20px 26px}.panel{background:#fff9f1;border:1px solid #dbc5af;padding:18px;border-radius:7px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:grid;gap:5px;font-weight:600}input,select,textarea{width:100%;padding:8px;border:1px solid #c8aa92;border-radius:5px;background:white;font:inherit}textarea{resize:vertical}form button{margin-top:13px}label.check{display:flex;align-items:center}label.check input{width:auto}img{display:block;max-height:100px;max-width:100%;margin:8px 0}#status{min-height:20px;color:#621e25}[hidden]{display:none!important}@media(max-width:520px){.grid{grid-template-columns:1fr}}\n</style>\n<header><h1>Zarafshon</h1><nav>\n  <button type=\"button\" id=\"show-menu\">Menyu</button><button type=\"button\" id=\"show-site\">Sayt dizayni</button>\n  <button type=\"button\" data-tab=\"Bronlar\">Bron va buyurtmalar</button>\n  <button type=\"button\" data-tab=\"Stollar\">Stollar</button>\n  <button type=\"button\" data-tab=\"Sozlamalar\">Ish vaqti</button>\n</nav></header>\n<main>\n  <p><a href=\"https://tayirovaybek4-code.github.io/anjir-bistro/admin.html\" target=\"_blank\" rel=\"noopener\">Admin saytini ochish</a> · <button type=\"button\" id=\"issue-key\">Yangi kirish kaliti yaratish</button></p>\n  <input id=\"access-key\" aria-label=\"Kirish kaliti\" readonly hidden>\n  <p id=\"status\" role=\"status\">Yuklanmoqda…</p>\n  <section class=\"panel\" id=\"menu-panel\">\n    <label>Taomni tanlang<select id=\"dish\"></select></label>\n    <form id=\"dish-form\">\n      <div class=\"grid\">\n        <label>Taom nomi<input name=\"name\" required maxlength=\"180\"></label>\n        <label>Bo‘lim<input name=\"category\" required maxlength=\"80\"></label>\n        <label>Narxi, so‘m<input name=\"price\" type=\"number\" min=\"0\" step=\"1\" required></label>\n        <label>Rasm manzili<input name=\"image\" placeholder=\"https://…\" maxlength=\"1500\"></label>\n      </div>\n      <img id=\"preview\" alt=\"Taom rasmi\" hidden>\n      <label>Tavsif<textarea name=\"description\" maxlength=\"1000\"></textarea></label>\n      <label class=\"check\"><input name=\"visible\" type=\"checkbox\"> Saytda ko‘rsatish</label>\n      <button>Taomni saqlash</button>\n    </form>\n  </section>\n  <section class=\"panel\" id=\"site-panel\" hidden>\n    <form id=\"site-form\">\n      <label>Restoran nomi<input name=\"brand\" required maxlength=\"45\"></label>\n      <label>Bosh sarlavha<input name=\"heading\" required maxlength=\"120\"></label>\n      <label>Bosh rasm manzili<input name=\"hero\" placeholder=\"https://…\" maxlength=\"1500\"></label>\n      <button>Saytni saqlash</button>\n    </form>\n  </section>\n</main>\n<script>\nconst byId = id => document.getElementById(id);\nconst form = byId(\"dish-form\");\nconst siteForm = byId(\"site-form\");\nconst status = byId(\"status\");\nlet menu = [];\nfunction fail(error) { status.textContent = error.message; }\nbyId(\"issue-key\").onclick = () => {\n  if (!confirm(\"Yangi kalit yaratilganda avvalgi kalit bilan kirib bo‘lmaydi. Davom etasizmi?\")) return;\n  google.script.run.withFailureHandler(fail).withSuccessHandler(key => {\n    const field = byId(\"access-key\");\n    field.value = key;\n    field.hidden = false;\n    field.select();\n    status.textContent = \"Kalitni nusxalab, admin saytiga kiriting.\";\n  }).issueAdminKey();\n};\nfunction fill(form, values) {\n  for (const field of form.elements) {\n    if (!field.name) continue;\n    if (field.type === \"checkbox\") field.checked = values[field.name] !== false;\n    else field.value = values[field.name] ?? \"\";\n  }\n}\nfunction showDish() {\n  fill(form, menu.find(item => item.id === byId(\"dish\").value) || {});\n  const photo = byId(\"preview\");\n  const image = form.elements.image.value;\n  photo.hidden = !image;\n  if (image) photo.src = image.startsWith(\"assets/\") ? \"https://tayirovaybek4-code.github.io/anjir-bistro/\" + image : image;\n}\nfunction showMenu(items, selected = \"\") {\n  menu = items;\n  byId(\"dish\").replaceChildren(new Option(\"Yangi taom\", \"\"), ...items.map(item => new Option(item.category + \" · \" + item.name,item.id)));\n  byId(\"dish\").value = selected;\n  showDish();\n}\nbyId(\"dish\").onchange = showDish;\nbyId(\"show-menu\").onclick = () => { byId(\"menu-panel\").hidden = false; byId(\"site-panel\").hidden = true; };\nbyId(\"show-site\").onclick = () => { byId(\"menu-panel\").hidden = true; byId(\"site-panel\").hidden = false; };\nfor (const button of document.querySelectorAll(\"[data-tab]\")) {\n  button.onclick = () => google.script.run.withFailureHandler(fail).withSuccessHandler(() => google.script.host.close()).adminTab(button.dataset.tab);\n}\nform.onsubmit = event => {\n  event.preventDefault();\n  const id = byId(\"dish\").value;\n  const item = {...Object.fromEntries(new FormData(form)), id, visible:form.elements.visible.checked};\n  status.textContent = \"Saqlanmoqda…\";\n  google.script.run.withFailureHandler(fail).withSuccessHandler(items => {\n    showMenu(items, id || items.at(-1)?.id);\n    status.textContent = \"Taom saqlandi.\";\n  }).adminSaveMenu(item);\n};\nsiteForm.onsubmit = event => {\n  event.preventDefault();\n  status.textContent = \"Saqlanmoqda…\";\n  google.script.run.withFailureHandler(fail).withSuccessHandler(site => {\n    fill(siteForm,site);\n    status.textContent = \"Sayt ma’lumotlari saqlandi.\";\n  }).adminSaveSite(Object.fromEntries(new FormData(siteForm)));\n};\ngoogle.script.run.withFailureHandler(fail).withSuccessHandler(data => {\n  showMenu(data.menu);\n  fill(siteForm,{brand:\"Zarafshon\",heading:\"Parij ta’mi, Toshkentda\",...data.site});\n  status.textContent = \"\";\n}).adminLoad();\n</script>\n</html>\n").setWidth(850).setHeight(650), "Zarafshon · Admin panel");
 }
 
 function adminTab(name) {
@@ -268,6 +269,42 @@ function adminSpreadsheet_() {
   return active;
 }
 
+function issueAdminKey() {
+  adminSpreadsheet_();
+  const key = Utilities.getUuid().replace(/-/g, "") + Utilities.getUuid().replace(/-/g, "");
+  PropertiesService.getScriptProperties().setProperty("ADMIN_KEY_HASH", adminKeyHash_(key));
+  return key;
+}
+
+function adminKeyHash_(key) {
+  return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, key));
+}
+
+function adminRequest_(input) {
+  const expected = PropertiesService.getScriptProperties().getProperty("ADMIN_KEY_HASH");
+  if (!expected || !/^[a-f0-9]{64}$/.test(String(input.key)) || adminKeyHash_(input.key) !== expected) {
+    return json({ok:false,error:"Kirish kaliti yaroqsiz."});
+  }
+  try {
+    if (input.action === "admin.menu") return json({ok:true,menu:saveMenu_(sheet("Bronlar").getParent(),input.item)});
+    if (input.action === "admin.site") return json({ok:true,site:saveSite_(sheet("Bronlar").getParent(),input.site)});
+    if (input.action !== "admin.list") return json({ok:false,error:"Amal topilmadi."});
+    const tab = sheet("Bronlar");
+    const rows = tab.getLastRow();
+    const day = String(input.day || "");
+    const all = rows > 1 ? tab.getRange(2,1,rows-1,11).getDisplayValues() : [];
+    const bookings = all.filter(row => row[0] && (!day || row[2] === day)).reverse().slice(0,100).map(row => {
+      const [id,,day,hour,table,guests,name,phone,status,,order] = row;
+      let preorder = null;
+      try { preorder = JSON.parse(order || "null"); } catch (_) {}
+      return {id,day,hour,table,guests,name,phone,status,preorder};
+    });
+    return json({ok:true,bookings,menu:loadMenu_() || [],site:loadSite_()});
+  } catch (error) {
+    return json({ok:false,error:"Amal bajarilmadi. Ma’lumotlarni tekshirib, qayta urinib ko‘ring."});
+  }
+}
+
 function adminLoad() {
   const active = adminSpreadsheet_();
   if (!active.getSheetByName("Menyu")) {
@@ -290,7 +327,10 @@ function adminLoad() {
 }
 
 function adminSaveMenu(item) {
-  const active = adminSpreadsheet_();
+  return saveMenu_(adminSpreadsheet_(),item);
+}
+
+function saveMenu_(active,item) {
   const price = Number(item.price);
   const name = String(item.name || "").trim();
   const category = String(item.category || "").trim();
@@ -319,7 +359,10 @@ function adminSaveMenu(item) {
 }
 
 function adminSaveSite(site) {
-  const active = adminSpreadsheet_();
+  return saveSite_(adminSpreadsheet_(),site);
+}
+
+function saveSite_(active,site) {
   const brand = String(site.brand || "").trim();
   const heading = String(site.heading || "").trim();
   const hero = String(site.hero || "").trim();
@@ -1025,3 +1068,4 @@ function menuSeed_() {
   ]
 ];
 }
+
