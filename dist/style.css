@@ -127,4 +127,8 @@ footer{margin-top:35px!important;border-top:1px solid var(--line)}
 #confirmation form{margin-top:16px}
 @media(max-width:740px){.layout{grid-template-columns:1fr}.menu-items{grid-template-columns:repeat(2,minmax(0,1fr))}.header-inner::after{display:none}.hero{background-position:58% center}.hero h1{max-width:9em}.menu-featured{gap:8px}.menu-featured .dish-content{padding:9px}.menu-featured .dish-content h3{font-size:15px}.menu-featured .outline{padding:5px;font-size:12px}}
 @media(max-width:450px){.header-inner{min-height:65px;gap:8px}.brand{letter-spacing:.07em;font-size:19px}nav a{font-size:13px}.hero{min-height:390px}.menu-featured img{height:110px}.menu-featured .dish-content p{font-size:12px}.menu-items{grid-template-columns:1fr}.reservation-intro{align-items:flex-start}.table{min-height:75px}}
+.portion-controls{display:inline-flex;align-items:center;justify-self:start;gap:8px;flex:none}
+.portion-controls button.outline{width:36px;min-height:36px;padding:0;font-size:21px}
+.portion-controls output{min-width:1.7ch;text-align:center;font-variant-numeric:tabular-nums}
+.portion-controls button:disabled{opacity:.45;cursor:default}
 

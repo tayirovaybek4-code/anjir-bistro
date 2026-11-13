@@ -11,6 +11,46 @@ function orderPayload() {
   return [...order].map(([id, quantity]) => ({id, quantity}));
 }
 
+function portionControls(item) {
+  const group = document.createElement("div");
+  group.className = "portion-controls";
+  group.dataset.dish = item.id;
+  const count = document.createElement("output");
+  count.setAttribute("aria-label","Porsiya soni");
+  for (const [step, symbol, label] of [[-1,"−","kamaytirish"],[1,"+","qo‘shish"]]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "outline";
+    button.textContent = symbol;
+    button.setAttribute("aria-label",item.name + " — porsiya " + label);
+    button.onclick = () => {
+      const quantity = (order.get(item.id) || 0) + step;
+      if (quantity < 0 || quantity > 20 || (quantity === 1 && step === 1 && order.size >= 30)) return;
+      if (quantity) order.set(item.id,quantity);
+      else order.delete(item.id);
+      const inOrder = Boolean(group.closest("#order-lines"));
+      renderOrder();
+      if (inOrder) {
+        const remaining = [...document.querySelectorAll(".portion-controls")].find(control => control.dataset.dish === item.id && control.closest("#order-lines"));
+        const focus = remaining?.querySelector(step > 0 && quantity < 20 ? "button:last-child" : "button:first-child");
+        (focus || document.querySelector("#order-lines button:enabled") || document.querySelector("#categories button[aria-pressed=true]"))?.focus();
+      }
+      document.querySelector("#order-feedback").textContent = item.name + (quantity ? " · " + quantity + " porsiya" : " buyurtmadan olib tashlandi.");
+    };
+    group.append(button);
+    if (step < 0) group.append(count);
+  }
+  updatePortionControls(group);
+  return group;
+}
+
+function updatePortionControls(group) {
+  const quantity = order.get(group.dataset.dish) || 0;
+  group.querySelector("output").textContent = quantity;
+  group.firstElementChild.disabled = quantity === 0;
+  group.lastElementChild.disabled = quantity >= 20 || (!quantity && order.size >= 30);
+}
+
 function renderOrder() {
   const lines = document.querySelector("#order-lines");
   lines.replaceChildren();
@@ -22,22 +62,14 @@ function renderOrder() {
     const row = document.createElement("div");
     row.className = "order-row";
     const label = document.createElement("span");
-    label.textContent = item.name + " × " + quantity;
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "outline";
-    remove.textContent = "−";
-    remove.setAttribute("aria-label", item.name + " porsiyasini kamaytirish");
-    remove.onclick = () => {
-      if (quantity === 1) order.delete(item.id);
-      else order.set(item.id, quantity - 1);
-      renderOrder();
-    };
-    row.append(label, remove);
+    label.textContent = item.name + " · " + money(item.price * quantity);
+    row.append(label, portionControls(item));
     lines.append(row);
   }
   document.querySelector("#preorder").hidden = !order.size;
+  document.querySelector("#order-link").hidden = !order.size;
   document.querySelector("#order-total").textContent = "Jami · " + money(total);
+  document.querySelectorAll(".portion-controls").forEach(updatePortionControls);
 }
 
 function dishCard(item, withPhoto) {
@@ -72,24 +104,17 @@ function dishCard(item, withPhoto) {
     description.textContent = item.description;
     content.append(description);
   }
-  const add = document.createElement("button");
-  add.type = "button";
-  add.className = "outline";
-  add.textContent = "+ Buyurtmaga";
-  add.onclick = () => {
-    if (!window.PREORDER_ENABLED) return;
-    order.set(item.id, Math.min(20, (order.get(item.id) || 0) + 1));
-    renderOrder();
-    document.querySelector("#order-feedback").textContent = item.name + " buyurtmaga qo‘shildi.";
-    document.querySelector("#order-link").hidden = false;
-  };
-  if (window.PREORDER_ENABLED) content.append(add);
+  if (window.PREORDER_ENABLED) content.append(portionControls(item));
   card.append(content);
   return card;
 }
 
 function renderMenu(items = menuItems) {
   menuItems = items.filter(item => item.visible !== false);
+  const available = new Set(menuItems.map(item => item.id));
+  for (const id of order.keys()) {
+    if (!available.has(id)) order.delete(id);
+  }
   const groups = [...new Set(menuItems.map(item => item.category))];
   if (!groups.includes(activeCategory)) activeCategory = groups[0];
   categories.replaceChildren();
@@ -109,6 +134,7 @@ function renderMenu(items = menuItems) {
   const photos = [...new Set([...preferred, ...menuItems.filter(item => item.image)])].slice(0,3);
   document.querySelector("#featured").replaceChildren(...photos.map(item => dishCard(item,true)));
   showCategory();
+  renderOrder();
 }
 
 function showCategory() {

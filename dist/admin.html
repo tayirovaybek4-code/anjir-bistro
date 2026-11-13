@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="admin.css">
 <script src="config.js" defer></script>
 <script src="photos.js" defer></script>
+<script src="dish-photos.js" defer></script>
 <script src="admin.js" defer></script>
 <header><a class="brand" href="./">ZARAFSHON</a><a href="./">Restoran sayti ↗</a></header>
 <main>
@@ -25,18 +26,28 @@
     <div class="scroll"><table><thead><tr><th>Tashrif</th><th>Mehmon</th><th>Joy</th><th>Buyurtma</th><th>Holat</th></tr></thead><tbody id="rows"></tbody></table></div>
   </section>
   <section class="card" id="menu" hidden>
-    <h2>Menyu</h2><label>Taom<select id="dish"></select></label>
+    <div class="title"><h2>Menyu</h2><button type="button" id="new-dish">Yangi taom</button></div>
+    <div class="menu-editor">
+    <div>
+      <label>Taom qidirish<input type="search" id="dish-search" placeholder="Nomi yoki bo‘limi" autocomplete="off"></label>
+      <p id="dish-count" role="status"></p>
+      <div id="dish-list" aria-label="Taomlar"></div>
+    </div>
     <form id="dish-form" class="fields">
+      <h3 class="wide" id="dish-title">Taomni tanlang</h3>
+      <div class="wide dish-photo-editor">
+        <img id="preview" alt="Taom rasmi" hidden>
+        <label>Rasmni almashtirish<input name="file" type="file" accept="image/*"></label>
+      </div>
       <label>Taom nomi<input name="name" required maxlength="180"></label>
       <label>Bo‘lim<input name="category" required maxlength="80"></label>
       <label>Narxi, so‘m<input name="price" type="number" min="0" required></label>
       <input name="image" type="hidden">
-      <label>Taom rasmi<input name="file" type="file" accept="image/*"></label>
       <label class="wide">Tavsif<textarea name="description" maxlength="1000"></textarea></label>
-      <img id="preview" alt="Taom rasmi" hidden>
       <label class="check wide"><input type="checkbox" name="visible"> Saytda ko‘rsatish</label>
-      <div><button>Taomni saqlash</button></div>
+      <div class="wide dish-actions"><button>Taomni saqlash</button><span id="dish-notice" role="status"></span></div>
     </form>
+    </div>
   </section>
   <section class="card" id="site" hidden>
     <h2>Sayt ko‘rinishi</h2><form id="site-form" class="fields">
