@@ -45,7 +45,8 @@ function doGet(event) {
     const busy = /^\d{4}-\d{2}-\d{2}$/.test(day || "") ? records(sheet("Bronlar"))
       .filter(r=>holdsTable_(r) && r.day===day)
       .map(({table,start,duration})=>({table,start,duration})) : [];
-    return json({ok:true,settings,busy});
+    const menu = loadMenu_();
+    return json({ok:true,settings,busy,site:loadSite_(),...(menu && {menu})});
   } catch (error) {
     console.error(error);
     return json({ok:false,error:"Bron tizimi vaqtincha ishlamayapti."});
@@ -72,7 +73,7 @@ function doPost(event) {
       SpreadsheetApp.flush();
       return json({ok:true});
     }
-    if (existing) return json({ok:holdsTable_(existing),status:existing.status,error:"Bron kodi ishlatilgan."});
+    if (existing) return json({ok:holdsTable_(existing),status:existing.status,preorder:JSON.parse(tab.getRange(existing.row,11).getValue() || "null"),error:"Bron kodi ishlatilgan."});
     const settings = config();
     const start = startAt(input.day,input.hour);
     const table = settings.tables.find(t=>t.id===input.table);
@@ -89,16 +90,19 @@ function doPost(event) {
       r.start<start+settings.duration*60000 && start<r.start+r.duration*60000)) {
       return json({ok:false,error:"Bu vaqtga stol band. Boshqa vaqtni tanlang."});
     }
-    const row = tab.getRange(tab.getLastRow()+1,1,1,10);
-    row.setNumberFormats([["@","@","@","@","0","0","@","@","@","0"]]);
+    let preorder;
+    try { preorder = validateOrder_(input.order); }
+    catch (error) { return json({ok:false,error:error.message}); }
+    const row = tab.getRange(tab.getLastRow()+1,1,1,11);
+    row.setNumberFormats([["@","@","@","@","0","0","@","@","@","0","@"]]);
     const safeName = /^[=+@-]/.test(name) ? "'"+name : name;
     const status = PropertiesService.getScriptProperties().getProperty("TELEGRAM_APPROVALS") === "on" ? "Kutilmoqda" : "Band";
-    row.setValues([[input.id,new Date().toISOString(),input.day,input.hour,table.id,input.guests,safeName,"'"+phone,status,settings.duration]]);
+    row.setValues([[input.id,new Date().toISOString(),input.day,input.hour,table.id,input.guests,safeName,"'"+phone,status,settings.duration,preorder ? JSON.stringify(preorder) : ""]]);
     SpreadsheetApp.flush();
     lock.releaseLock();
     lock = null;
     notifyNewBooking_({ id: input.id, status, day: input.day, hour: input.hour, table: table.name, guests: input.guests });
-    return json({ok:true,status});
+    return json({ok:true,status,preorder});
   } catch (error) {
     console.error(error);
     return json({ok:false,error:"Bronni saqlab bo‘lmadi. Qayta urinib ko‘ring."});
@@ -218,16 +222,806 @@ function onOpen() {
 }
 
 function openAdmin() {
-  const html = HtmlService.createHtmlOutput(
-    '<base target="_top"><style>body{font:15px system-ui;padding:16px}button{display:block;margin:12px 0;padding:10px}</style>' +
-    '<h2>Anjir Bistro</h2><p>Kerakli bo‘limni tanlang va jadvaldagi qiymatlarni tahrirlang.</p>' +
-    '<button onclick="google.script.run.adminTab(\'Bronlar\')">Bronlar va holatlar</button>' +
-    '<button onclick="google.script.run.adminTab(\'Stollar\')">Stollar va sig‘im</button>' +
-    '<button onclick="google.script.run.adminTab(\'Sozlamalar\')">Restoran va ish vaqti</button>');
-  SpreadsheetApp.getUi().showSidebar(html.setTitle("Admin panel"));
+  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput("<!doctype html>\n<html lang=\"uz\">\n<meta charset=\"utf-8\">\n<style>\n*{box-sizing:border-box}body{margin:0;background:#f4ebe0;color:#39231d;font:14px system-ui}header{background:#621e25;color:#fff4e8;padding:20px 26px}h1{font:30px Georgia;margin:0}nav{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}button{cursor:pointer;border:1px solid #ad8973;border-radius:5px;padding:8px 12px;background:#fff7ec;color:#621e25;font:inherit}button[type=submit]{background:#621e25;color:white}main{padding:20px 26px}.panel{background:#fff9f1;border:1px solid #dbc5af;padding:18px;border-radius:7px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}label{display:grid;gap:5px;font-weight:600}input,select,textarea{width:100%;padding:8px;border:1px solid #c8aa92;border-radius:5px;background:white;font:inherit}textarea{resize:vertical}form button{margin-top:13px}label.check{display:flex;align-items:center}label.check input{width:auto}img{display:block;max-height:100px;max-width:100%;margin:8px 0}#status{min-height:20px;color:#621e25}[hidden]{display:none!important}@media(max-width:520px){.grid{grid-template-columns:1fr}}\n</style>\n<header><h1>Zarafshon</h1><nav>\n  <button type=\"button\" id=\"show-menu\">Menyu</button><button type=\"button\" id=\"show-site\">Sayt dizayni</button>\n  <button type=\"button\" data-tab=\"Bronlar\">Bron va buyurtmalar</button>\n  <button type=\"button\" data-tab=\"Stollar\">Stollar</button>\n  <button type=\"button\" data-tab=\"Sozlamalar\">Ish vaqti</button>\n</nav></header>\n<main>\n  <p id=\"status\" role=\"status\">Yuklanmoqda…</p>\n  <section class=\"panel\" id=\"menu-panel\">\n    <label>Taomni tanlang<select id=\"dish\"></select></label>\n    <form id=\"dish-form\">\n      <div class=\"grid\">\n        <label>Taom nomi<input name=\"name\" required maxlength=\"180\"></label>\n        <label>Bo‘lim<input name=\"category\" required maxlength=\"80\"></label>\n        <label>Narxi, so‘m<input name=\"price\" type=\"number\" min=\"0\" step=\"1\" required></label>\n        <label>Rasm manzili<input name=\"image\" placeholder=\"https://…\" maxlength=\"1500\"></label>\n      </div>\n      <img id=\"preview\" alt=\"Taom rasmi\" hidden>\n      <label>Tavsif<textarea name=\"description\" maxlength=\"1000\"></textarea></label>\n      <label class=\"check\"><input name=\"visible\" type=\"checkbox\"> Saytda ko‘rsatish</label>\n      <button>Taomni saqlash</button>\n    </form>\n  </section>\n  <section class=\"panel\" id=\"site-panel\" hidden>\n    <form id=\"site-form\">\n      <label>Restoran nomi<input name=\"brand\" required maxlength=\"45\"></label>\n      <label>Bosh sarlavha<input name=\"heading\" required maxlength=\"120\"></label>\n      <label>Bosh rasm manzili<input name=\"hero\" placeholder=\"https://…\" maxlength=\"1500\"></label>\n      <button>Saytni saqlash</button>\n    </form>\n  </section>\n</main>\n<script>\nconst byId = id => document.getElementById(id);\nconst form = byId(\"dish-form\");\nconst siteForm = byId(\"site-form\");\nconst status = byId(\"status\");\nlet menu = [];\nfunction fail(error) { status.textContent = error.message; }\nfunction fill(form, values) {\n  for (const field of form.elements) {\n    if (!field.name) continue;\n    if (field.type === \"checkbox\") field.checked = values[field.name] !== false;\n    else field.value = values[field.name] ?? \"\";\n  }\n}\nfunction showDish() {\n  fill(form, menu.find(item => item.id === byId(\"dish\").value) || {});\n  const photo = byId(\"preview\");\n  const image = form.elements.image.value;\n  photo.hidden = !image;\n  if (image) photo.src = image.startsWith(\"assets/\") ? \"https://tayirovaybek4-code.github.io/anjir-bistro/\" + image : image;\n}\nfunction showMenu(items, selected = \"\") {\n  menu = items;\n  byId(\"dish\").replaceChildren(new Option(\"Yangi taom\", \"\"), ...items.map(item => new Option(item.category + \" · \" + item.name,item.id)));\n  byId(\"dish\").value = selected;\n  showDish();\n}\nbyId(\"dish\").onchange = showDish;\nbyId(\"show-menu\").onclick = () => { byId(\"menu-panel\").hidden = false; byId(\"site-panel\").hidden = true; };\nbyId(\"show-site\").onclick = () => { byId(\"menu-panel\").hidden = true; byId(\"site-panel\").hidden = false; };\nfor (const button of document.querySelectorAll(\"[data-tab]\")) {\n  button.onclick = () => google.script.run.withFailureHandler(fail).withSuccessHandler(() => google.script.host.close()).adminTab(button.dataset.tab);\n}\nform.onsubmit = event => {\n  event.preventDefault();\n  const id = byId(\"dish\").value;\n  const item = {...Object.fromEntries(new FormData(form)), id, visible:form.elements.visible.checked};\n  status.textContent = \"Saqlanmoqda…\";\n  google.script.run.withFailureHandler(fail).withSuccessHandler(items => {\n    showMenu(items, id || items.at(-1)?.id);\n    status.textContent = \"Taom saqlandi.\";\n  }).adminSaveMenu(item);\n};\nsiteForm.onsubmit = event => {\n  event.preventDefault();\n  status.textContent = \"Saqlanmoqda…\";\n  google.script.run.withFailureHandler(fail).withSuccessHandler(site => {\n    fill(siteForm,site);\n    status.textContent = \"Sayt ma’lumotlari saqlandi.\";\n  }).adminSaveSite(Object.fromEntries(new FormData(siteForm)));\n};\ngoogle.script.run.withFailureHandler(fail).withSuccessHandler(data => {\n  showMenu(data.menu);\n  fill(siteForm,{brand:\"Zarafshon\",heading:\"Parij ta’mi, Toshkentda\",...data.site});\n  status.textContent = \"\";\n}).adminLoad();\n</script>\n</html>\n").setWidth(850).setHeight(650), "Zarafshon · Admin panel");
 }
 
 function adminTab(name) {
   if (!["Bronlar","Stollar","Sozlamalar"].includes(name)) return;
   SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name).activate();
+}
+
+function loadMenu_() {
+  const tab = sheet("Menyu");
+  if (!tab) return null;
+  return tab.getDataRange().getValues().slice(1).filter(row => row[0]).map(row => ({
+    id: String(row[0]), category: String(row[1]), name: String(row[2]), price: Number(row[3]),
+    image: String(row[4]), description: String(row[5]), visible: row[6] === true
+  }));
+}
+
+function loadSite_() {
+  const tab = sheet("Sayt");
+  if (!tab) return {};
+  const [,brand,heading,hero] = tab.getRange("B1:B4").getDisplayValues().flat();
+  return {brand,heading,hero:validImage_(hero) ? hero : ""};
+}
+
+function validateOrder_(order) {
+  if (order === undefined || (Array.isArray(order) && !order.length)) return null;
+  if (!Array.isArray(order) || order.length > 30) throw Error("Buyurtma tarkibini tekshiring.");
+  const menu = new Map((loadMenu_() || []).filter(item => item.visible).map(item => [item.id,item]));
+  const used = new Set();
+  const items = order.map(entry => {
+    const item = menu.get(entry?.id);
+    if (!item || used.has(item.id) || !Number.isInteger(entry.quantity) || entry.quantity < 1 || entry.quantity > 20) {
+      throw Error("Menyudagi taom yoki porsiya soni o‘zgargan. Buyurtmani qayta tekshiring.");
+    }
+    used.add(item.id);
+    return {id:item.id,name:item.name,price:item.price,quantity:entry.quantity};
+  });
+  return {items,total:items.reduce((total,item) => total + item.price * item.quantity,0)};
+}
+
+function adminSpreadsheet_() {
+  const active = SpreadsheetApp.getActiveSpreadsheet();
+  if (!active || active.getId() !== sheet("Bronlar").getParent().getId()) throw Error("Admin panelni Google Sheets ichidan oching.");
+  return active;
+}
+
+function adminLoad() {
+  const active = adminSpreadsheet_();
+  if (!active.getSheetByName("Menyu")) {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(10000);
+    try {
+      if (!active.getSheetByName("Menyu")) {
+        const tab = active.insertSheet("Menyu");
+        const rows = [["ID","Bo‘lim","Nomi","Narxi","Rasm","Tavsif","Ko‘rinadi"], ...menuSeed_()];
+        tab.getRange(1,1,rows.length,7).setValues(rows);
+        tab.setFrozenRows(1);
+        active.getSheetByName("Bronlar").getRange("K1").setValue("Oldindan buyurtma");
+        SpreadsheetApp.flush();
+      }
+    } finally {
+      lock.releaseLock();
+    }
+  }
+  return {menu:loadMenu_() || [],site:loadSite_()};
+}
+
+function adminSaveMenu(item) {
+  const active = adminSpreadsheet_();
+  const price = Number(item.price);
+  const name = String(item.name || "").trim();
+  const category = String(item.category || "").trim();
+  const image = String(item.image || "").trim();
+  const description = String(item.description || "").trim();
+  if (!name || name.length > 180 || !category || category.length > 80 || description.length > 1000
+    || !Number.isSafeInteger(price) || price < 0 || !validImage_(image)) throw Error("Taom ma’lumotlarini tekshiring.");
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    let tab = active.getSheetByName("Menyu");
+    if (!tab) {
+      tab = active.insertSheet("Menyu");
+      tab.appendRow(["ID","Bo‘lim","Nomi","Narxi","Rasm","Tavsif","Ko‘rinadi"]);
+      tab.setFrozenRows(1);
+    }
+    const found = tab.getDataRange().getDisplayValues().findIndex(row => row[0] === item.id);
+    const id = found > 0 ? item.id : Utilities.getUuid();
+    tab.getRange(found > 0 ? found+1 : tab.getLastRow()+1,1,1,7)
+      .setValues([[id,plain_(category),plain_(name),price,image,plain_(description),item.visible === true]]);
+    SpreadsheetApp.flush();
+    return loadMenu_();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function adminSaveSite(site) {
+  const active = adminSpreadsheet_();
+  const brand = String(site.brand || "").trim();
+  const heading = String(site.heading || "").trim();
+  const hero = String(site.hero || "").trim();
+  if (!brand || brand.length > 45 || !heading || heading.length > 120 || !validImage_(hero)) throw Error("Sayt ma’lumotlarini tekshiring.");
+  const tab = active.getSheetByName("Sayt") || active.insertSheet("Sayt");
+  tab.getRange("A1:B4").setValues([["Sozlama","Qiymat"],["Nom",plain_(brand)],["Sarlavha",plain_(heading)],["Rasm",hero]]);
+  return loadSite_();
+}
+
+function plain_(text) {
+  return /^[=+@-]/.test(text) ? "'"+text : text;
+}
+
+function validImage_(value) {
+  return !value || value.length <= 1500 && (/^https:\/\/[^\s]+$/i.test(value) || /^assets\/[a-z\d.-]+$/i.test(value));
+}
+
+function menuSeed_() {
+  return [
+  [
+    "1",
+    "Sovuq gazaklar",
+    "Хоровац из запечённых овощей",
+    58000,
+    "assets/menu-4-1.webp",
+    "",
+    true
+  ],
+  [
+    "2",
+    "Sovuq gazaklar",
+    "Рулетики из баклажанов и кабачков",
+    70000,
+    "",
+    "",
+    true
+  ],
+  [
+    "3",
+    "Sovuq gazaklar",
+    "Селёдочка с картофелем",
+    60000,
+    "",
+    "",
+    true
+  ],
+  [
+    "4",
+    "Sovuq gazaklar",
+    "Домашний мясной холодец",
+    90000,
+    "",
+    "",
+    true
+  ],
+  [
+    "5",
+    "Sovuq gazaklar",
+    "Рыбное ассорти",
+    350000,
+    "",
+    "",
+    true
+  ],
+  [
+    "6",
+    "Sovuq gazaklar",
+    "Мясное ассорти",
+    390000,
+    "",
+    "",
+    true
+  ],
+  [
+    "7",
+    "Sovuq gazaklar",
+    "Сырная тарелка",
+    320000,
+    "",
+    "",
+    true
+  ],
+  [
+    "8",
+    "Sovuq gazaklar",
+    "Ассорти из свежих овощей",
+    60000,
+    "assets/menu-5-1.webp",
+    "",
+    true
+  ],
+  [
+    "9",
+    "Sovuq gazaklar",
+    "Ассорти домашних разносолов",
+    45000,
+    "",
+    "",
+    true
+  ],
+  [
+    "10",
+    "Sovuq gazaklar",
+    "Ассорти бочковых солений",
+    55000,
+    "",
+    "",
+    true
+  ],
+  [
+    "11",
+    "Sovuq gazaklar",
+    "Лимон",
+    20000,
+    "",
+    "",
+    true
+  ],
+  [
+    "12",
+    "Sovuq gazaklar",
+    "Сузьма",
+    20000,
+    "",
+    "",
+    true
+  ],
+  [
+    "13",
+    "Salatlar",
+    "Салат «Аччик-чучук»",
+    35000,
+    "assets/menu-8-2.webp",
+    "",
+    true
+  ],
+  [
+    "14",
+    "Salatlar",
+    "Салат «Цезарь» классический с курицей",
+    85000,
+    "assets/menu-8-1.webp",
+    "",
+    true
+  ],
+  [
+    "15",
+    "Salatlar",
+    "Салат «Driada» с говядиной и гранатом",
+    110000,
+    "assets/menu-9-1.webp",
+    "",
+    true
+  ],
+  [
+    "16",
+    "Salatlar",
+    "Салат «Японский»",
+    75000,
+    "assets/menu-9-2.webp",
+    "",
+    true
+  ],
+  [
+    "17",
+    "Salatlar",
+    "Салат с хрустящими баклажанами и творожным сыром",
+    80000,
+    "assets/menu-10-1.webp",
+    "",
+    true
+  ],
+  [
+    "18",
+    "Salatlar",
+    "Салат с тунцом",
+    110000,
+    "assets/menu-10-2.webp",
+    "",
+    true
+  ],
+  [
+    "19",
+    "Salatlar",
+    "Салат «Burrata» с соусом песто",
+    110000,
+    "assets/menu-10-3.webp",
+    "",
+    true
+  ],
+  [
+    "20",
+    "Salatlar",
+    "Салат «Лесная свежесть» с печёной свёклой и сыром страчателла",
+    90000,
+    "assets/menu-11-1.webp",
+    "",
+    true
+  ],
+  [
+    "21",
+    "Salatlar",
+    "Салат «Греческий»",
+    80000,
+    "assets/menu-11-3.webp",
+    "",
+    true
+  ],
+  [
+    "22",
+    "Salatlar",
+    "Салат «Под водочку»",
+    70000,
+    "assets/menu-11-2.webp",
+    "",
+    true
+  ],
+  [
+    "23",
+    "Issiq gazaklar",
+    "Мозговая косточка",
+    90000,
+    "",
+    "",
+    true
+  ],
+  [
+    "24",
+    "Issiq gazaklar",
+    "Мини-самса с говядиной и томатным соусом (6 шт.)",
+    70000,
+    "",
+    "",
+    true
+  ],
+  [
+    "25",
+    "Issiq gazaklar",
+    "Горячая закуска от шефа",
+    90000,
+    "assets/menu-12-1.webp",
+    "",
+    true
+  ],
+  [
+    "26",
+    "Issiq gazaklar",
+    "Фаршированный дунганский перец в кляре",
+    90000,
+    "",
+    "",
+    true
+  ],
+  [
+    "27",
+    "Issiq gazaklar",
+    "Тигровые креветки в темпуре",
+    150000,
+    "",
+    "",
+    true
+  ],
+  [
+    "28",
+    "Gazaklar",
+    "Бараньи семечки",
+    70000,
+    "assets/menu-14-1.webp",
+    "",
+    true
+  ],
+  [
+    "29",
+    "Gazaklar",
+    "Гарлики чесночные",
+    35000,
+    "assets/menu-14-2.webp",
+    "",
+    true
+  ],
+  [
+    "30",
+    "Gazaklar",
+    "Жареный сулугуни",
+    30000,
+    "",
+    "",
+    true
+  ],
+  [
+    "31",
+    "Gazaklar",
+    "Слайсы из колбасок",
+    30000,
+    "",
+    "",
+    true
+  ],
+  [
+    "32",
+    "Gazaklar",
+    "Луковые кольца в кляре",
+    20000,
+    "",
+    "",
+    true
+  ],
+  [
+    "33",
+    "Gazaklar",
+    "Горячий сет к пенному",
+    105000,
+    "assets/menu-13-1.webp",
+    "",
+    true
+  ],
+  [
+    "34",
+    "Gazaklar",
+    "Солёные косточки",
+    30000,
+    "",
+    "",
+    true
+  ],
+  [
+    "35",
+    "Gazaklar",
+    "Сулугуни",
+    25000,
+    "",
+    "",
+    true
+  ],
+  [
+    "36",
+    "Gazaklar",
+    "Курт",
+    10000,
+    "",
+    "",
+    true
+  ],
+  [
+    "37",
+    "Gazaklar",
+    "Солёные фисташки",
+    50000,
+    "",
+    "",
+    true
+  ],
+  [
+    "38",
+    "Gazaklar",
+    "Ассорти к пенному",
+    70000,
+    "",
+    "",
+    true
+  ],
+  [
+    "39",
+    "Sho‘rvalar",
+    "Ароматная мастава по-домашнему",
+    38000,
+    "",
+    "",
+    true
+  ],
+  [
+    "40",
+    "Sho‘rvalar",
+    "Суп с фрикадельками и домашней лапшой",
+    35000,
+    "",
+    "",
+    true
+  ],
+  [
+    "41",
+    "Sho‘rvalar",
+    "Борщ из говядины",
+    38000,
+    "",
+    "",
+    true
+  ],
+  [
+    "42",
+    "Asosiy taomlar",
+    "Smoky Bull – 1 кг",
+    420000,
+    "assets/menu-16-2.webp",
+    "",
+    true
+  ],
+  [
+    "43",
+    "Asosiy taomlar",
+    "Вагури – 1 кг",
+    400000,
+    "assets/menu-16-1.webp",
+    "",
+    true
+  ],
+  [
+    "44",
+    "Asosiy taomlar",
+    "Казан-кебаб из бычьего хвоста – 1 кг",
+    380000,
+    "",
+    "Oldindan buyurtma",
+    true
+  ],
+  [
+    "45",
+    "Asosiy taomlar",
+    "Цыплёнок, томленный под сливочным маслом – 1 кг",
+    100000,
+    "",
+    "",
+    true
+  ],
+  [
+    "46",
+    "Asosiy taomlar",
+    "Картофель по-домашнему с мясом",
+    130000,
+    "",
+    "",
+    true
+  ],
+  [
+    "47",
+    "Asosiy taomlar",
+    "Блюдо от шефа",
+    500000,
+    "assets/menu-17-1.webp",
+    "",
+    true
+  ],
+  [
+    "48",
+    "Asosiy taomlar",
+    "Томлёная баранья шейка «Байрам» – 1 кг",
+    400000,
+    "",
+    "Oldindan buyurtma",
+    true
+  ],
+  [
+    "49",
+    "Asosiy taomlar",
+    "Тушенка – 1 кг",
+    260000,
+    "",
+    "",
+    true
+  ],
+  [
+    "50",
+    "Mangal",
+    "Шашлык кусковой из молодой баранины",
+    45000,
+    "",
+    "",
+    true
+  ],
+  [
+    "51",
+    "Mangal",
+    "Шашлык молотый «Кофта»",
+    35000,
+    "",
+    "",
+    true
+  ],
+  [
+    "52",
+    "Mangal",
+    "Шашлык кусковой из говядины",
+    45000,
+    "assets/menu-21-1.webp",
+    "",
+    true
+  ],
+  [
+    "53",
+    "Mangal",
+    "Шашлык из говяжьей печени",
+    35000,
+    "",
+    "",
+    true
+  ],
+  [
+    "54",
+    "Mangal",
+    "Шашлык из куриных крылышек",
+    30000,
+    "",
+    "",
+    true
+  ],
+  [
+    "55",
+    "Mangal",
+    "Шашлык из бараньей корейки «Чурраско»",
+    120000,
+    "",
+    "",
+    true
+  ],
+  [
+    "56",
+    "Mangal",
+    "Домашние колбаски на мангале – баранина",
+    52000,
+    "",
+    "",
+    true
+  ],
+  [
+    "57",
+    "Mangal",
+    "Домашние колбаски на мангале – говядина",
+    49000,
+    "",
+    "",
+    true
+  ],
+  [
+    "58",
+    "Mangal",
+    "Домашние колбаски на мангале – курица",
+    47000,
+    "",
+    "",
+    true
+  ],
+  [
+    "59",
+    "Mangal",
+    "Сет из домашних колбасок",
+    105000,
+    "assets/menu-20-1.webp",
+    "",
+    true
+  ],
+  [
+    "60",
+    "Mangal",
+    "Перепёлка на шампурах «Чурраско»",
+    125000,
+    "assets/menu-20-2.webp",
+    "",
+    true
+  ],
+  [
+    "61",
+    "Baliq",
+    "Жареный сазан – 1 кг",
+    100000,
+    "assets/menu-22-2.webp",
+    "",
+    true
+  ],
+  [
+    "62",
+    "Baliq",
+    "Сазан «Чакак» – 1 кг",
+    160000,
+    "",
+    "",
+    true
+  ],
+  [
+    "63",
+    "Baliq",
+    "Сазан на углях – 1 кг",
+    100000,
+    "assets/menu-22-1.webp",
+    "",
+    true
+  ],
+  [
+    "64",
+    "Steyklar",
+    "Стейк T-bone – 100 г",
+    70000,
+    "assets/menu-23-2.webp",
+    "",
+    true
+  ],
+  [
+    "65",
+    "Steyklar",
+    "Стейк Рибай на кости – 100 г",
+    70000,
+    "",
+    "",
+    true
+  ],
+  [
+    "66",
+    "Bolalar menyusi",
+    "Smoky Burger Classic",
+    60000,
+    "",
+    "",
+    true
+  ],
+  [
+    "67",
+    "Bolalar menyusi",
+    "Мясной конверт с сыром",
+    60000,
+    "",
+    "",
+    true
+  ],
+  [
+    "68",
+    "Garnirlar",
+    "Овощной сет на мангале",
+    65000,
+    "assets/menu-24-1.webp",
+    "",
+    true
+  ],
+  [
+    "69",
+    "Garnirlar",
+    "Картофель по-деревенски",
+    40000,
+    "",
+    "",
+    true
+  ],
+  [
+    "70",
+    "Garnirlar",
+    "Классический картофель фри",
+    30000,
+    "",
+    "",
+    true
+  ],
+  [
+    "71",
+    "Garnirlar",
+    "Домашние картофельные чипсы",
+    25000,
+    "",
+    "",
+    true
+  ],
+  [
+    "72",
+    "Non va souslar",
+    "Хлебное ассорти",
+    35000,
+    "",
+    "",
+    true
+  ],
+  [
+    "73",
+    "Non va souslar",
+    "Лепешка",
+    8000,
+    "",
+    "",
+    true
+  ],
+  [
+    "74",
+    "Non va souslar",
+    "Томатный",
+    19000,
+    "",
+    "",
+    true
+  ],
+  [
+    "75",
+    "Non va souslar",
+    "Тар-тар",
+    19000,
+    "",
+    "",
+    true
+  ],
+  [
+    "76",
+    "Non va souslar",
+    "Сладкий чили",
+    19000,
+    "",
+    "",
+    true
+  ]
+];
 }
