@@ -50,11 +50,14 @@ function dishCard(item, withPhoto) {
     photo.decoding = "async";
     photo.referrerPolicy = "no-referrer";
     let sourceIndex = 0;
-    photo.onerror = () => {
-      if (sources[++sourceIndex]) photo.src = sources[sourceIndex];
-      else photo.remove();
+    const showSource = () => {
+      const source = sources[sourceIndex++];
+      if (!source) return photo.remove();
+      if (source.startsWith("photo:")) resolvePhoto(source).then(url => { photo.src = url; },showSource);
+      else photo.src = source;
     };
-    photo.src = sources[0];
+    photo.onerror = showSource;
+    showSource();
     card.append(photo);
   }
   const content = document.createElement("div");

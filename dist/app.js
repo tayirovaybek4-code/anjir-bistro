@@ -117,8 +117,16 @@ async function refresh(message = "", autoNext = false) {
     }
     if (data.site?.heading) byId("hero-title").textContent = data.site.heading;
     const hero = byId("hero-title").closest(".hero");
-    if (data.site?.hero) hero.style.setProperty("--hero-image", 'url(' + JSON.stringify(data.site.hero) + ')');
-    else hero.style.removeProperty("--hero-image");
+    if (data.site?.hero) {
+      try {
+        const photo = await resolvePhoto(data.site.hero);
+        if (request !== current) return;
+        hero.style.setProperty("--hero-image", 'url(' + JSON.stringify(photo) + ')');
+      } catch (_) {
+        if (request !== current) return;
+        hero.style.removeProperty("--hero-image");
+      }
+    } else hero.style.removeProperty("--hero-image");
     if (Array.isArray(data.menu)) {
       window.PREORDER_ENABLED = true;
       renderMenu(data.menu);
@@ -257,3 +265,4 @@ function renderHistory() {
 
 byId("history").onclick = () => { renderHistory(); dialog.showModal(); };
 refresh("", true);
+

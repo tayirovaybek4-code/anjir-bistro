@@ -40,6 +40,7 @@ function holdsTable_(record) {
 
 function doGet(event) {
   try {
+    if (event.parameter.photo) return json({ok:true,image:readPhoto_(event.parameter.photo)});
     const settings = config();
     const day = event.parameter.day;
     const busy = /^\d{4}-\d{2}-\d{2}$/.test(day || "") ? records(sheet("Bronlar"))
@@ -349,8 +350,9 @@ function saveMenu_(active,item) {
     }
     const found = tab.getDataRange().getDisplayValues().findIndex(row => row[0] === item.id);
     const id = found > 0 ? item.id : Utilities.getUuid();
+    const savedImage = item.upload ? storePhoto_(active,item.upload) : image;
     tab.getRange(found > 0 ? found+1 : tab.getLastRow()+1,1,1,7)
-      .setValues([[id,plain_(category),plain_(name),price,image,plain_(description),item.visible === true]]);
+      .setValues([[id,plain_(category),plain_(name),price,savedImage,plain_(description),item.visible === true]]);
     SpreadsheetApp.flush();
     return loadMenu_();
   } finally {
@@ -367,8 +369,16 @@ function saveSite_(active,site) {
   const heading = String(site.heading || "").trim();
   const hero = String(site.hero || "").trim();
   if (!brand || brand.length > 45 || !heading || heading.length > 120 || !validImage_(hero)) throw Error("Sayt ma’lumotlarini tekshiring.");
-  const tab = active.getSheetByName("Sayt") || active.insertSheet("Sayt");
-  tab.getRange("A1:B4").setValues([["Sozlama","Qiymat"],["Nom",plain_(brand)],["Sarlavha",plain_(heading)],["Rasm",hero]]);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const tab = active.getSheetByName("Sayt") || active.insertSheet("Sayt");
+    const savedHero = site.upload ? storePhoto_(active,site.upload) : hero;
+    tab.getRange("A1:B4").setValues([["Sozlama","Qiymat"],["Nom",plain_(brand)],["Sarlavha",plain_(heading)],["Rasm",savedHero]]);
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
   return loadSite_();
 }
 
@@ -377,7 +387,28 @@ function plain_(text) {
 }
 
 function validImage_(value) {
-  return !value || value.length <= 1500 && (/^https:\/\/[^\s]+$/i.test(value) || /^assets\/[a-z\d.-]+$/i.test(value));
+  return !value || value.length <= 1500 && (/^https:\/\/[^\s]+$/i.test(value) || /^assets\/[a-z\d.-]+$/i.test(value) || /^photo:[a-f0-9-]{36}$/.test(value));
+}
+
+function storePhoto_(active,data) {
+  if (typeof data !== "string" || data.length > 300000 || !/^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]+={0,2}$/.test(data)) {
+    throw Error("Rasmni saqlab bo‘lmadi.");
+  }
+  const tab = active.getSheetByName("Rasmlar") || active.insertSheet("Rasmlar");
+  const id = Utilities.getUuid();
+  const chunks = data.match(/.{1,35000}/g);
+  const row = tab.getRange(tab.getLastRow()+1,1,1,chunks.length+1);
+  row.setNumberFormat("@").setValues([[id,...chunks.map(chunk => "."+chunk)]]);
+  return "photo:"+id;
+}
+
+function readPhoto_(id) {
+  if (!/^[a-f0-9-]{36}$/.test(id)) throw Error("Rasm topilmadi.");
+  const tab = sheet("Rasmlar");
+  if (!tab || !tab.getLastRow()) throw Error("Rasm topilmadi.");
+  const match = tab.getRange(1,1,tab.getLastRow(),1).createTextFinder(id).matchEntireCell(true).findNext();
+  if (!match) throw Error("Rasm topilmadi.");
+  return tab.getRange(match.getRow(),2,1,tab.getLastColumn()-1).getDisplayValues()[0].map(chunk=>chunk.slice(1)).join("");
 }
 
 function menuSeed_() {

@@ -52,20 +52,52 @@ function renderBookings(bookings) {
 function fill(form, data) {
   for (const field of form.elements) {
     if (!field.name) continue;
-    if (field.type === "checkbox") field.checked = data[field.name] !== false;
+    if (field.type === "file") field.value = "";
+    else if (field.type === "checkbox") field.checked = data[field.name] !== false;
     else field.value = data[field.name] ?? "";
   }
 }
-function preview() {
-  const image = dishForm.elements.image.value.trim();
-  const photo = byId("preview");
-  photo.hidden = !/^https:\/\/[^\s]+$/i.test(image) && !/^assets\/[a-z\d.-]+$/i.test(image);
-  if (!photo.hidden) photo.src = image;
-  else photo.removeAttribute("src");
+async function preview(form, field, photo) {
+  const file = form.elements.file.files[0];
+  const source = form.elements[field].value;
+  if (photo.src.startsWith("blob:")) URL.revokeObjectURL(photo.src);
+  photo.hidden = true;
+  photo.removeAttribute("src");
+  if (!file && !source) return;
+  try {
+    const url = file ? URL.createObjectURL(file) : await resolvePhoto(source);
+    if (form.elements.file.files[0] !== file || form.elements[field].value !== source) return;
+    photo.src = url;
+    photo.hidden = false;
+  } catch (_) { photo.hidden = true; }
+}
+async function imagePayload(form) {
+  const {file,...data} = Object.fromEntries(new FormData(form));
+  if (!file?.size) return data;
+  let bitmap;
+  try { bitmap = await createImageBitmap(file); }
+  catch (_) { throw Error("Bu rasm ochilmadi. JPG, PNG yoki WebP faylini tanlang."); }
+  try {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    for (const size of [1600,1280,960,720]) {
+      const scale = Math.min(1,size / Math.max(bitmap.width,bitmap.height));
+      canvas.width = Math.max(1,Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1,Math.round(bitmap.height * scale));
+      context.fillStyle = "#fffaf4";
+      context.fillRect(0,0,canvas.width,canvas.height);
+      context.drawImage(bitmap,0,0,canvas.width,canvas.height);
+      const upload = canvas.toDataURL("image/jpeg",0.85);
+      if (upload.length <= 300000) return {...data,upload};
+    }
+    throw Error("Rasm juda katta. Boshqa rasm tanlang.");
+  } finally {
+    bitmap.close();
+  }
 }
 function selectDish() {
   fill(dishForm,menu.find(item => item.id === byId("dish").value) || {});
-  preview();
+  preview(dishForm,"image",byId("preview"));
 }
 function renderMenu(items, selected = "") {
   menu = items;
@@ -91,6 +123,7 @@ login.onsubmit = event => {
       renderBookings(data.bookings);
       renderMenu(data.menu);
       fill(siteForm,{brand:"Zarafshon",heading:"Parij ta’mi, Toshkentda",...data.site});
+      preview(siteForm,"hero",byId("hero-preview"));
       login.reset();
       byId("login").hidden = true;
       byId("dashboard").hidden = false;
@@ -109,7 +142,8 @@ refresh.onclick = () => run(refresh,async () => {
 });
 byId("day").onchange = () => refresh.click();
 byId("dish").onchange = selectDish;
-dishForm.elements.image.oninput = preview;
+dishForm.elements.file.onchange = () => preview(dishForm,"image",byId("preview"));
+siteForm.elements.file.onchange = () => preview(siteForm,"hero",byId("hero-preview"));
 for (const button of document.querySelectorAll("[data-panel]")) {
   button.onclick = () => {
     for (const control of document.querySelectorAll("[data-panel]")) {
@@ -123,7 +157,7 @@ dishForm.onsubmit = event => {
   event.preventDefault();
   run(dishForm.querySelector("button"),async () => {
     const id = byId("dish").value;
-    const item = {...Object.fromEntries(new FormData(dishForm)),id,visible:dishForm.elements.visible.checked};
+    const item = {...await imagePayload(dishForm),id,visible:dishForm.elements.visible.checked};
     const result = await request("admin.menu",{item});
     renderMenu(result.menu,id || result.menu.at(-1)?.id);
     return "Taom saqlandi.";
@@ -132,8 +166,10 @@ dishForm.onsubmit = event => {
 siteForm.onsubmit = event => {
   event.preventDefault();
   run(siteForm.querySelector("button"),async () => {
-    const result = await request("admin.site",{site:Object.fromEntries(new FormData(siteForm))});
+    const result = await request("admin.site",{site:await imagePayload(siteForm)});
     fill(siteForm,result.site);
+    preview(siteForm,"hero",byId("hero-preview"));
     return "Sayt ma’lumotlari saqlandi.";
   });
 };
+
