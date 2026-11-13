@@ -281,5 +281,10 @@ function renderHistory() {
 }
 
 byId("history").onclick = () => { renderHistory(); dialog.showModal(); };
+byId("manage-confirmed-booking").onclick = () => {
+  byId("confirmation").close();
+  renderHistory();
+  dialog.showModal();
+};
 refresh("", true);
 

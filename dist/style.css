@@ -61,6 +61,9 @@ input,select{width:100%;min-width:0;height:42px;border:1px solid var(--line);bor
 footer{padding:24px 0;font-size:12px}
 dialog{color:var(--ink);width:min(460px,calc(100% - 32px));max-height:80vh}
 dialog::backdrop{background:#23251c88}
+.confirmation-close{position:sticky;top:0;z-index:1;display:flex;justify-content:flex-end;pointer-events:none}
+.confirmation-close button{background:var(--paper);pointer-events:auto;min-height:44px}
+.confirmation-actions{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px}
 #card-transfer{margin:16px 0;padding:16px;border:1px solid var(--line);border-radius:12px}
 #card-transfer h3,#card-transfer p{margin:0 0 9px}
 #card-transfer #transfer-feedback{margin:10px 0 0}
