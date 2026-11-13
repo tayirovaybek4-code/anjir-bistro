@@ -67,7 +67,10 @@ function render() {
     label.textContent = t.name;
     const size = document.createElement("small");
     size.textContent = t.capacity + " o‘rin";
-    button.append(label, size);
+    const position = document.createElement("span");
+    position.textContent = "Qator " + (t.row || Math.ceil(t.id / 3));
+    position.className = "table-position";
+    button.append(label, size, position);
     button.onclick = () => {
       selected = selected === t.id ? null : t.id;
       feedback.textContent = "";
@@ -77,7 +80,9 @@ function render() {
     if (focused === button.dataset.tableId && !button.disabled) button.focus();
   }
   reserve.disabled = loading || submitting || selected === null;
-  byId("selection").textContent = selected === null ? "Xaritadan stol tanlang" : table.name + " · " + table.capacity + " o‘rin";
+  byId("selection").textContent = selected === null ? "Xaritadan stol tanlang" :
+    table.name + "-stol tanlandi. " + (table.row || Math.ceil(table.id / 3)) + "-qator · " + table.capacity +
+    " o‘rin. Sizni " + date.value + " kuni soat " + time.value + " da kutamiz.";
 }
 
 async function refresh(message = "", autoNext = false) {
@@ -106,9 +111,18 @@ async function refresh(message = "", autoNext = false) {
     const max = Math.min(100, Math.max(1, ...settings.tables.map(t => t.capacity)));
     guests.replaceChildren(...Array.from({length:max}, (_,i) => new Option((i+1)+" kishi", i+1)));
     guests.value = Math.min(Number(previousGuests) || 2, max);
-    if (byId("brand-name").textContent !== settings.name) byId("brand-name").textContent = settings.name;
-    document.querySelector("footer > span").textContent = settings.name;
-    document.title = settings.name + " — Stol band qilish";
+    if (data.site?.brand) {
+      byId("brand-name").textContent = byId("footer-brand").textContent = data.site.brand;
+      document.title = data.site.brand + " — Menyu va stol band qilish";
+    }
+    if (data.site?.heading) byId("hero-title").textContent = data.site.heading;
+    const hero = byId("hero-title").closest(".hero");
+    if (data.site?.hero) hero.style.setProperty("--hero-image", 'url(' + JSON.stringify(data.site.hero) + ')');
+    else hero.style.removeProperty("--hero-image");
+    if (Array.isArray(data.menu)) {
+      window.PREORDER_ENABLED = true;
+      renderMenu(data.menu);
+    }
     byId("duration").textContent = "Bron davomiyligi · " + settings.duration + " daqiqa";
     feedback.textContent = message || (validTimes.length ? "" : "Bu sana uchun boshqa vaqt qolmadi.");
     loading = false;
@@ -129,7 +143,8 @@ byId("booking").onsubmit = async event => {
   if (reserve.disabled) return;
   const table = settings.tables.find(t => t.id === selected);
   const booking = {action:"book",table:table.id,day:date.value,hour:time.value,
-    guests:Number(guests.value),name:byId("customer").value.trim(),phone:byId("phone").value.trim()};
+    guests:Number(guests.value),name:byId("customer").value.trim(),phone:byId("phone").value.trim(),
+    order:orderPayload()};
   const fingerprint = JSON.stringify(booking);
   if (retryData !== fingerprint) retryId = crypto.randomUUID();
   retryData = fingerprint;
@@ -142,8 +157,14 @@ byId("booking").onsubmit = async event => {
     const record = {id:retryId,table:table.name,day:booking.day,hour:booking.hour,guests:booking.guests,status:result.status};
     remember([...history().filter(item => item.id !== record.id),record]);
     retryData = null;
+    order.clear();
+    renderOrder();
+    byId("order-feedback").textContent = "";
+    byId("order-link").hidden = true;
     selected = null;
+    showConfirmation(booking, table, result);
     message = "Stol " + table.name + " · " + booking.day + " soat " + booking.hour + " ga band qilindi.";
+    if (booking.order.length) message += " Taom buyurtmangiz ham saqlandi.";
     if (result.status === "Kutilmoqda") message = "Bron so‘rovi yuborildi. Admin tasdig‘ini «Bronlarim» bo‘limida tekshiring.";
   } catch (error) {
     message = error.message;
@@ -151,6 +172,43 @@ byId("booking").onsubmit = async event => {
   submitting = false;
   await refresh(message);
 };
+
+function showConfirmation(booking, table, result) {
+  const pending = result.status === "Kutilmoqda";
+  byId("confirmation-title").textContent = pending ? "Bron so‘rovingiz qabul qilindi" : "Sizni kutib qolamiz!";
+  byId("confirmation-note").textContent = pending
+    ? "Bizni tanlaganingiz uchun katta rahmat! Tasdiqni «Bronlarim» bo‘limida ko‘rishingiz mumkin."
+    : "Bizni tanlaganingiz uchun katta rahmat! Tashrifingiz maroqli o‘tsin. Sizni dasturxonimiz atrofida yana ko‘rishdan xursand bo‘lamiz.";
+  const details = byId("confirmation-details");
+  details.replaceChildren();
+  const day = new Intl.DateTimeFormat("uz-UZ", {dateStyle:"long",timeZone:"Asia/Tashkent"})
+    .format(startAt(booking.day,booking.hour));
+  for (const [label,value] of [["Sana",day],["Vaqt",booking.hour],
+    ["Joy",table.name + "-stol · " + (table.row || Math.ceil(table.id/3)) + "-qator"],
+    ["Mehmonlar",booking.guests + " kishi"]]) {
+    const term = document.createElement("dt");
+    const description = document.createElement("dd");
+    term.textContent = label;
+    description.textContent = value;
+    details.append(term, description);
+  }
+  const summary = byId("confirmation-order");
+  summary.replaceChildren();
+  if (result.preorder?.items.length) {
+    const heading = document.createElement("h3");
+    heading.textContent = "Oldindan buyurtma";
+    summary.append(heading);
+    for (const item of result.preorder.items) {
+      const line = document.createElement("p");
+      line.textContent = item.name + " × " + item.quantity + " · " + money(item.price * item.quantity);
+      summary.append(line);
+    }
+    const total = document.createElement("strong");
+    total.textContent = "Jami · " + money(result.preorder.total);
+    summary.append(total);
+  }
+  byId("confirmation").showModal();
+}
 
 function renderHistory() {
   const records = history();

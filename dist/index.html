@@ -2,20 +2,30 @@
 <html lang="uz">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Anjir Bistro — Stol band qilish</title>
+<title>Zarafshon — Menyu va stol band qilish</title>
 <meta name="description" content="Anjir Bistro zal xaritasidan stol tanlang va tashrifingizni rejalashtiring.">
 <link rel="stylesheet" href="style.css">
 <header class="site-header">
   <div class="shell header-inner">
-    <a class="brand" href="./"><span class="mark" aria-hidden="true">✳</span><span id="brand-name">Anjir <i>Bistro</i></span></a>
-    <button class="outline" id="history" type="button">Bronlarim</button>
+    <a class="brand" href="./" id="brand-name">Zarafshon</a>
+    <nav aria-label="Asosiy menyu"><a href="#menu">Menyu</a><a href="#reservation">Stol band qilish</a></nav>
   </div>
 </header>
-<main class="shell">
+<main>
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="shell"><h1 id="hero-title">Parij ta’mi,<br>Toshkentda</h1><a class="hero-button" href="#menu">Menyuni ko‘rish</a></div>
+  </section>
+  <section id="menu" class="shell menu-section" aria-labelledby="menu-title">
+    <h2 class="section-title" id="menu-title">Menyu</h2>
+    <div class="menu-featured" id="featured"></div>
+    <div id="categories" class="categories" aria-label="Taom bo‘limlari"></div>
+    <div id="menu-items" class="menu-items"></div>
+    <p id="order-feedback" role="status"></p><a id="order-link" class="outline" href="#reservation" hidden>Buyurtma bilan stol band qilish</a>
+  </section>
+  <section class="shell" id="reservation" aria-labelledby="reservation-title">
   <div class="intro">
-    <p class="eyebrow">ANJIR BISTRO <span></span> TOSHKENT</p>
-    <h1>Stol band qilish<span>.</span></h1>
-    <p>Tashrif vaqtini belgilang va zaldan o‘zingizga yoqqan stolni tanlang.</p>
+    <h2 class="section-title" id="reservation-title">Stol band qilish</h2>
+    <div class="reservation-intro"><p>Tashrif vaqtini belgilang va zaldan o‘zingizga yoqqan stolni tanlang.</p><button class="outline" id="history" type="button">Bronlarim</button></div>
   </div>
   <div class="layout">
     <section class="card hall" aria-labelledby="hall-title">
@@ -37,6 +47,7 @@
         </div>
         <label>Ism<input id="customer" autocomplete="name" minlength="2" maxlength="80" required></label>
         <label>Telefon<input id="phone" type="tel" autocomplete="tel" maxlength="24" required></label>
+        <section id="preorder" hidden aria-labelledby="preorder-title"><h3 id="preorder-title">Oldindan buyurtma</h3><div id="order-lines"></div><strong id="order-total"></strong></section>
         <div class="selection"><span aria-hidden="true">▦</span><div><small>TANLANGAN STOL</small><strong id="selection" aria-live="polite">Xaritadan stol tanlang</strong></div></div>
         <button class="primary" id="reserve" disabled>Stolni band qilish <span aria-hidden="true">→</span></button>
         <p class="footnote" id="duration"></p>
@@ -44,9 +55,20 @@
       </form>
     </section>
   </div>
+  </section>
 </main>
-<footer class="shell"><span>Anjir Bistro</span><a href="https://docs.google.com/spreadsheets/d/1w66wvpzHCVMl_oZsdAoByPYR6PaHAVomnaLyABwDwYg/edit" target="_blank" rel="noopener">Admin panel</a></footer>
+<footer class="shell"><span id="footer-brand">Zarafshon</span><a href="https://t.me/Aybek_Tairov_bot">Telegram orqali bron</a><a href="https://docs.google.com/spreadsheets/d/1w66wvpzHCVMl_oZsdAoByPYR6PaHAVomnaLyABwDwYg/edit" target="_blank" rel="noopener">Admin panel</a></footer>
 <dialog id="reservations"><div class="card-top"><h2>Bronlarim</h2><form method="dialog"><button class="outline" aria-label="Yopish">✕</button></form></div><div id="reservation-list"></div></dialog>
+<dialog id="confirmation" aria-labelledby="confirmation-title">
+  <p class="confirmation-mark" aria-hidden="true">✓</p>
+  <h2 id="confirmation-title">Sizni kutib qolamiz!</h2>
+  <p id="confirmation-note"></p>
+  <dl id="confirmation-details"></dl>
+  <div id="confirmation-order"></div>
+  <form method="dialog"><button class="hero-button">Tayyor</button></form>
+</dialog>
 <script src="config.js" defer></script>
+<script src="menu-data.js" defer></script>
+<script src="menu.js" defer></script>
 <script src="app.js" defer></script>
 </html>
