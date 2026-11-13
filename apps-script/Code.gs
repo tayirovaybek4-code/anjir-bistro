@@ -86,12 +86,50 @@ function doPost(event) {
     const safeName = /^[=+@-]/.test(name) ? "'"+name : name;
     row.setValues([[input.id,new Date().toISOString(),input.day,input.hour,table.id,input.guests,safeName,"'"+phone,"Band",settings.duration]]);
     SpreadsheetApp.flush();
+    lock.releaseLock();
+    lock = null;
+    notifyNewBooking_({ day: input.day, hour: input.hour, table: table.name, guests: input.guests });
     return json({ok:true});
   } catch (error) {
     console.error(error);
     return json({ok:false,error:"Bronni saqlab bo‘lmadi. Qayta urinib ko‘ring."});
   } finally {
     if (lock && lock.hasLock()) lock.releaseLock();
+  }
+}
+
+function notifyNewBooking_(booking) {
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    const token = properties.getProperty("TELEGRAM_BOT_TOKEN");
+    const chatId = properties.getProperty("TELEGRAM_CHAT_ID");
+    if (!token || !chatId) return;
+
+    const sheetId = properties.getProperty("SHEET_ID") || sheet("Bronlar").getParent().getId();
+    const response = UrlFetchApp.fetch("https://api.telegram.org/bot" + token + "/sendMessage", {
+      method: "post",
+      contentType: "application/json",
+      muteHttpExceptions: true,
+      payload: JSON.stringify({
+        chat_id: chatId,
+        text: [
+          "🔔 Yangi bron",
+          "Stol " + booking.table + " · " + booking.guests + " kishi",
+          booking.day + " · " + booking.hour
+        ].join("\n"),
+        reply_markup: {
+          inline_keyboard: [[{
+            text: "Bronlar jadvalini ochish",
+            url: "https://docs.google.com/spreadsheets/d/" + sheetId + "/edit"
+          }]]
+        }
+      })
+    });
+    if (response.getResponseCode() !== 200 || !JSON.parse(response.getContentText()).ok) {
+      console.warn("Telegram xabari yuborilmadi. HTTP " + response.getResponseCode());
+    }
+  } catch {
+    console.warn("Telegram xabari yuborilmadi.");
   }
 }
 
