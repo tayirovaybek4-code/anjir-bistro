@@ -104,7 +104,7 @@ function doPost(event) {
     lock.releaseLock();
     lock = null;
     notifyNewBooking_({ id: input.id, status, day: input.day, hour: input.hour, table: table.name, guests: input.guests });
-    return json({ok:true,status,preorder});
+    return json({ok:true,status,preorder,transfer:cardTransfer_(preorder)});
   } catch (error) {
     console.error(error);
     return json({ok:false,error:"Bronni saqlab bo‘lmadi. Qayta urinib ko‘ring."});
@@ -262,6 +262,22 @@ function validateOrder_(order) {
     return {id:item.id,name:item.name,price:item.price,quantity:entry.quantity};
   });
   return {items,total:items.reduce((total,item) => total + item.price * item.quantity,0)};
+}
+
+function paymentQuote_(order) {
+  const preorder = validateOrder_(order);
+  const deposit = 100000;
+  const food = preorder?.total ?? 0;
+  if (!Number.isSafeInteger(food) || food < 0 || !Number.isSafeInteger((food + deposit) * 100)) {
+    throw Error("Buyurtma summasini hisoblab bo‘lmadi.");
+  }
+  return {deposit,food,total:food + deposit,totalTiyin:(food + deposit) * 100};
+}
+
+function cardTransfer_(preorder) {
+  const card = PropertiesService.getScriptProperties().getProperty("TRANSFER_CARD") || "";
+  if (!/^\d{16}$/.test(card)) return null;
+  return {card, total:100000 + (preorder?.total ?? 0)};
 }
 
 function adminSpreadsheet_() {

@@ -215,6 +215,22 @@ function showConfirmation(booking, table, result) {
     total.textContent = "Jami · " + money(result.preorder.total);
     summary.append(total);
   }
+  const transfer = result.transfer;
+  byId("card-transfer").hidden = !transfer;
+  if (transfer) {
+    byId("transfer-total").textContent = "Depozit va taomlar uchun jami · " + money(transfer.total);
+    byId("transfer-card").textContent = transfer.card.match(/.{4}/g).join(" ");
+    const feedback = byId("transfer-feedback");
+    feedback.textContent = "Raqamni ilovadagi oluvchi maydoniga joylang. Restoran o‘tkazmani tekshirib tasdiqlaydi.";
+    byId("copy-card").onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(transfer.card);
+        feedback.textContent = "Raqam nusxalandi. Uni ilovadagi oluvchi maydoniga joylang.";
+      } catch {
+        feedback.textContent = "Karta raqamini yuqoridan belgilab nusxalang.";
+      }
+    };
+  }
   byId("confirmation").showModal();
 }
 
