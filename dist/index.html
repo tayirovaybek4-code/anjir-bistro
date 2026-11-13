@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="uz">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anjir Bistro — Stol band qilish</title>
+<meta name="description" content="Anjir Bistro zal xaritasidan stol tanlang va tashrifingizni rejalashtiring.">
+<link rel="stylesheet" href="style.css">
+<header class="site-header">
+  <div class="shell header-inner">
+    <a class="brand" href="./"><span class="mark" aria-hidden="true">✳</span><span id="brand-name">Anjir <i>Bistro</i></span></a>
+    <button class="outline" id="history" type="button">Bronlarim</button>
+  </div>
+</header>
+<main class="shell">
+  <div class="intro">
+    <p class="eyebrow">ANJIR BISTRO <span></span> TOSHKENT</p>
+    <h1>Stol band qilish<span>.</span></h1>
+    <p>Tashrif vaqtini belgilang va zaldan o‘zingizga yoqqan stolni tanlang.</p>
+  </div>
+  <div class="layout">
+    <section class="card hall" aria-labelledby="hall-title">
+      <div class="card-top"><h2 id="hall-title">Zal xaritasi</h2><span class="floor-label">ASOSIY ZAL</span></div>
+      <div class="floor">
+        <div class="window"><span>DERAZA</span></div>
+        <div class="tables" id="tables" role="group" aria-label="Zaldagi stollar"></div>
+        <div class="entrance">↑ &nbsp; KIRISH</div>
+      </div>
+      <ul class="legend"><li><i></i> Bo‘sh</li><li><i></i> Tanlangan</li><li><i></i> Mavjud emas</li></ul>
+    </section>
+    <section class="card booking" aria-labelledby="booking-title">
+      <h2 id="booking-title">Tashrif tafsilotlari</h2>
+      <form id="booking">
+        <label>Sana<input required type="date" id="date"></label>
+        <div class="pair">
+          <label>Vaqt<select id="time" required></select></label>
+          <label>Mehmonlar<select id="guests"><option value="1">1 kishi</option><option value="2" selected>2 kishi</option><option value="3">3 kishi</option><option value="4">4 kishi</option><option value="5">5 kishi</option><option value="6">6 kishi</option></select></label>
+        </div>
+        <label>Ism<input id="customer" autocomplete="name" minlength="2" maxlength="80" required></label>
+        <label>Telefon<input id="phone" type="tel" autocomplete="tel" maxlength="24" required></label>
+        <div class="selection"><span aria-hidden="true">▦</span><div><small>TANLANGAN STOL</small><strong id="selection" aria-live="polite">Xaritadan stol tanlang</strong></div></div>
+        <button class="primary" id="reserve" disabled>Stolni band qilish <span aria-hidden="true">→</span></button>
+        <p class="footnote" id="duration"></p>
+        <p id="feedback" role="status"></p>
+      </form>
+    </section>
+  </div>
+</main>
+<footer class="shell"><span>Anjir Bistro</span><a href="https://docs.google.com/spreadsheets/d/1w66wvpzHCVMl_oZsdAoByPYR6PaHAVomnaLyABwDwYg/edit" target="_blank" rel="noopener">Admin panel</a></footer>
+<dialog id="reservations"><div class="card-top"><h2>Bronlarim</h2><form method="dialog"><button class="outline" aria-label="Yopish">✕</button></form></div><div id="reservation-list"></div></dialog>
+<script src="config.js" defer></script>
+<script src="app.js" defer></script>
+</html>
