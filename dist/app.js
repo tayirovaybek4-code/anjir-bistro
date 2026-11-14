@@ -91,7 +91,10 @@ function render() {
       feedback.textContent = "";
       render();
     };
-    map.append(button);
+    const booth = document.createElement("div");
+    booth.className = "table-booth";
+    booth.append(button);
+    map.append(booth);
     if (focused === button.dataset.tableId && !button.disabled) button.focus();
   }
   reserve.disabled = loading || submitting || selected === null;
@@ -107,7 +110,7 @@ async function refresh(message = "", autoNext = false) {
   loading = true;
   time.disabled = true;
   reserve.disabled = true;
-  for (const button of byId("tables").children) button.disabled = true;
+  for (const button of byId("tables").querySelectorAll("button")) button.disabled = true;
   feedback.textContent = "Bandlik tekshirilmoqda…";
   try {
     const data = await api();
