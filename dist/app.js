@@ -5,6 +5,7 @@ const date = byId("date");
 const time = byId("time");
 const guests = byId("guests");
 const feedback = byId("feedback");
+const retryAvailability = byId("retry-availability");
 const reserve = byId("reserve");
 const dialog = byId("reservations");
 const list = byId("reservation-list");
@@ -130,6 +131,7 @@ async function refresh(message = "", autoNext = false) {
   reserve.disabled = true;
   for (const button of byId("tables").querySelectorAll("button")) button.disabled = true;
   feedback.textContent = "Bandlik tekshirilmoqda…";
+  retryAvailability.hidden = true;
   try {
     const data = await api();
     if (request !== current) return;
@@ -157,14 +159,11 @@ async function refresh(message = "", autoNext = false) {
     renderWelcome(data.site);
     const hero = byId("hero-title").closest(".hero");
     if (data.site?.hero) {
-      try {
-        const photo = await resolvePhoto(data.site.hero);
-        if (request !== current) return;
-        hero.style.setProperty("--hero-image", 'url(' + JSON.stringify(photo) + ')');
-      } catch (_) {
-        if (request !== current) return;
-        hero.style.removeProperty("--hero-image");
-      }
+      resolvePhoto(data.site.hero).then(photo => {
+        if (request === current) hero.style.setProperty("--hero-image", "url(" + JSON.stringify(photo) + ")");
+      }).catch(() => {
+        if (request === current) hero.style.removeProperty("--hero-image");
+      });
     } else hero.style.removeProperty("--hero-image");
     if (Array.isArray(data.menu)) {
       window.PREORDER_ENABLED = true;
@@ -175,7 +174,8 @@ async function refresh(message = "", autoNext = false) {
     loading = false;
   } catch (error) {
     if (request !== current) return;
-    feedback.textContent = message || error.message;
+    feedback.textContent = [message,"Bandlikni tekshirib bo‘lmadi. Qayta urinib ko‘ring."].filter(Boolean).join(" ");
+    retryAvailability.hidden = false;
   }
   render();
 }
@@ -183,7 +183,8 @@ async function refresh(message = "", autoNext = false) {
 date.min = new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Tashkent"}).format(new Date());
 date.value = date.min;
 date.onchange = () => { selected = null; refresh(); };
-time.onchange = guests.onchange = () => { feedback.textContent = ""; render(); };
+retryAvailability.onclick = () => refresh();
+time.onchange = guests.onchange = () => { if (!loading) feedback.textContent = ""; render(); };
 
 byId("booking").onsubmit = async event => {
   event.preventDefault();
