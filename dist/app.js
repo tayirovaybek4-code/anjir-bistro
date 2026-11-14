@@ -77,6 +77,7 @@ function render() {
     button.type = "button";
     button.className = t.capacity === 2 ? "table round" : "table";
     button.dataset.tableId = t.id;
+    button.dataset.capacity = t.capacity;
     button.disabled = !available(t, start);
     button.setAttribute("aria-pressed", String(selected === t.id));
     const label = document.createElement("strong");
@@ -350,4 +351,5 @@ byId("manage-confirmed-booking").onclick = () => {
   dialog.showModal();
 };
 refresh("", true);
+
 
