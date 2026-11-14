@@ -18,6 +18,17 @@ let submitting = false;
 let request = 0;
 let retryId;
 let retryData;
+let activeHall = "main";
+const hallButtons = document.querySelectorAll("[data-hall]");
+const tableHall = table => table.hall === "vip" || (table.hall !== "main" && table.id === 10) ? "vip" : "main";
+
+for (const button of hallButtons) {
+  button.onclick = () => {
+    activeHall = button.dataset.hall;
+    for (const option of hallButtons) option.setAttribute("aria-pressed",String(option === button));
+    render();
+  };
+}
 
 function history() {
   try { return JSON.parse(localStorage.getItem(key) || "[]"); }
@@ -56,7 +67,11 @@ function render() {
   if (!submitting && (!table || !available(table, start))) selected = null;
   const focused = document.activeElement?.dataset?.tableId;
   map.replaceChildren();
-  for (const t of settings?.tables || []) {
+  const hallTables = (settings?.tables || []).filter(t => tableHall(t) === activeHall);
+  map.classList.toggle("vip-tables", activeHall === "vip");
+  map.setAttribute("aria-label",activeHall === "vip" ? "VIP zal stollari" : "Asosiy zal stollari");
+  if (settings && !hallTables.length) map.textContent = "Bu zalda hozircha stol yo‘q.";
+  for (const t of hallTables) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = t.capacity === 2 ? "table round" : "table";
@@ -81,7 +96,8 @@ function render() {
   }
   reserve.disabled = loading || submitting || selected === null;
   byId("selection").textContent = selected === null ? "Xaritadan stol tanlang" :
-    table.name + "-stol tanlandi. " + (table.row || Math.ceil(table.id / 3)) + "-qator · " + table.capacity +
+    table.name + "-stol tanlandi. " + (tableHall(table) === "vip" ? "VIP zal" : "Asosiy zal") +
+    " · " + (table.row || Math.ceil(table.id / 3)) + "-qator · " + table.capacity +
     " o‘rin. Sizni " + date.value + " kuni soat " + time.value + " da kutamiz.";
 }
 
@@ -220,7 +236,7 @@ function showConfirmation(booking, table, result,bookingId) {
   const months = ["yanvar","fevral","mart","aprel","may","iyun","iyul","avgust","sentabr","oktabr","noyabr","dekabr"];
   const day = dateNumber + "-" + months[month - 1] + ", " + year;
   for (const [label,value] of [["Sana",day],["Vaqt",booking.hour],
-    ["Joy",table.name + "-stol · " + (table.row || Math.ceil(table.id/3)) + "-qator"],
+    ["Joy",table.name + "-stol · " + (tableHall(table) === "vip" ? "VIP zal" : "Asosiy zal") + " · " + (table.row || Math.ceil(table.id/3)) + "-qator"],
     ["Mehmonlar",booking.guests + " kishi"]]) {
     const term = document.createElement("dt");
     const description = document.createElement("dd");
