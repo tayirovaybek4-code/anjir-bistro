@@ -68,6 +68,8 @@ dialog::backdrop{background:#23251c88}
 .map-links{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(145px,100%),1fr));gap:10px}
 .map-links a{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:48px;padding:10px 13px;border:1px solid var(--line);border-radius:8px;color:var(--ink);text-decoration:none;font-weight:650}
 .map-links a:hover,.map-links a:focus-visible{border-color:#63242a;background:#f1e5d9}
+.map-links .map-icon{object-fit:contain;flex:none}
+.map-links .map-name{margin-inline-end:auto}
 .confirmation-close{position:sticky;top:0;z-index:1;display:flex;justify-content:flex-end;pointer-events:none}
 .confirmation-close button{background:var(--paper);pointer-events:auto;min-height:44px}
 .confirmation-actions{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px}

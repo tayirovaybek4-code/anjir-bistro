@@ -7,7 +7,7 @@
 <script>if (!location.hash) document.documentElement.classList.add("welcome-active");</script>
 <link rel="preload" as="image" href="assets/welcome-mobile.webp" media="(max-width:700px) and (orientation:portrait)">
 <link rel="preload" as="image" href="assets/welcome-desktop.webp" media="(min-width:701px), (orientation:landscape)">
-<link rel="stylesheet" href="style.css?v=welcome-screen">
+<link rel="stylesheet" href="style.css?v=map-icons">
 <section class="welcome" id="welcome" aria-labelledby="welcome-title">
   <div class="welcome-copy">
     <p id="welcome-brand">Zarafshon</p>
@@ -86,9 +86,9 @@ window.addEventListener("hashchange", () => {
     <h2 id="location-title">Manzil</h2>
     <p id="location-address">Restoranning aniq manzili tez orada qo‘shiladi.</p>
     <nav class="map-links" aria-label="Xaritada ochish">
-      <a id="map-yandex" href="https://yandex.uz/maps/10335/tashkent/" target="_blank" rel="noopener noreferrer">Yandex Maps <span aria-hidden="true">↗</span></a>
-      <a id="map-gis" href="https://2gis.uz/tashkent" target="_blank" rel="noopener noreferrer">2GIS <span aria-hidden="true">↗</span></a>
-      <a id="map-google" href="https://www.google.com/maps/search/?api=1&amp;query=Tashkent" target="_blank" rel="noopener noreferrer">Google Maps <span aria-hidden="true">↗</span></a>
+      <a id="map-yandex" href="https://yandex.uz/maps/10335/tashkent/" target="_blank" rel="noopener noreferrer"><img class="map-icon" src="assets/map-yandex.png" width="24" height="24" alt="" loading="lazy"><span class="map-name">Yandex Maps</span> <span aria-hidden="true">↗</span></a>
+      <a id="map-gis" href="https://2gis.uz/tashkent" target="_blank" rel="noopener noreferrer"><img class="map-icon" src="assets/map-gis.png" width="24" height="24" alt="" loading="lazy"><span class="map-name">2GIS</span> <span aria-hidden="true">↗</span></a>
+      <a id="map-google" href="https://www.google.com/maps/search/?api=1&amp;query=Tashkent" target="_blank" rel="noopener noreferrer"><img class="map-icon" src="assets/map-google.png" width="24" height="24" alt="" loading="lazy"><span class="map-name">Google Maps</span> <span aria-hidden="true">↗</span></a>
     </nav>
   </div>
 </section>
