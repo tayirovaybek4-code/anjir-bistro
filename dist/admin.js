@@ -3,6 +3,7 @@ const notice = byId("notice");
 const login = byId("login-form");
 const dishForm = byId("dish-form");
 const siteForm = byId("site-form");
+const welcomeForm = byId("welcome-form");
 let key = "";
 let menu = [];
 let selectedDish = "";
@@ -74,7 +75,11 @@ async function preview(form, field, photo, fallback = "") {
 }
 async function imagePayload(form) {
   const {file,...data} = Object.fromEntries(new FormData(form));
-  if (!file?.size) return data;
+  const upload = await encodePhoto(file);
+  return upload ? {...data,upload} : data;
+}
+async function encodePhoto(file) {
+  if (!file?.size) return "";
   let bitmap;
   try { bitmap = await createImageBitmap(file); }
   catch (_) { throw Error("Bu rasm ochilmadi. JPG, PNG yoki WebP faylini tanlang."); }
@@ -89,7 +94,7 @@ async function imagePayload(form) {
       context.fillRect(0,0,canvas.width,canvas.height);
       context.drawImage(bitmap,0,0,canvas.width,canvas.height);
       const upload = canvas.toDataURL("image/jpeg",0.85);
-      if (upload.length <= 300000) return {...data,upload};
+      if (upload.length <= 300000) return upload;
     }
     throw Error("Rasm juda katta. Boshqa rasm tanlang.");
   } finally {
@@ -170,6 +175,7 @@ login.onsubmit = event => {
       renderMenu(data.menu);
       fill(siteForm,{...data.site,...data.site?.location,brand:data.site?.brand || "Zarafshon",heading:data.site?.heading || "Parij ta’mi, Toshkentda"});
       preview(siteForm,"hero",byId("hero-preview"));
+      fill(welcomeForm,{welcomeTitle:"Dasturxonimizga xush kelibsiz",welcomeNote:"Yaxshi taom, samimiy suhbat va esda qoladigan oqshom.",welcomeButton:"Kirish",...data.site});
       login.reset();
       byId("login").hidden = true;
       byId("dashboard").hidden = false;
@@ -222,5 +228,15 @@ siteForm.onsubmit = event => {
     preview(siteForm,"hero",byId("hero-preview"));
     return "Sayt ma’lumotlari saqlandi.";
   });
+};
+welcomeForm.onsubmit = event => {
+  event.preventDefault();
+  run(welcomeForm.querySelector("button"),async () => {
+    const {desktopFile,mobileFile,...site} = Object.fromEntries(new FormData(welcomeForm));
+    [site.desktopUpload,site.mobileUpload] = await Promise.all([encodePhoto(desktopFile),encodePhoto(mobileFile)]);
+    const result = await request("admin.welcome",{site});
+    fill(welcomeForm,result.site);
+    return "Kirish ekrani saqlandi.";
+  },byId("welcome-status"));
 };
 

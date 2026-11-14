@@ -18,6 +18,12 @@ let submitting = false;
 let request = 0;
 let retryId;
 let retryData;
+const welcome = byId("welcome");
+if (!location.hash) welcome.hidden = false;
+byId("welcome-enter").onclick = () => {
+  welcome.hidden = true;
+  byId("site-start").focus({preventScroll:true});
+};
 let activeHall = "main";
 const hallButtons = document.querySelectorAll("[data-hall]");
 const tableHall = table => table.hall === "vip" || (table.hall !== "main" && table.id === 10) ? "vip" : "main";
@@ -153,6 +159,7 @@ async function refresh(message = "", autoNext = false) {
     }
     if (data.site?.heading) byId("hero-title").textContent = data.site.heading;
     renderLocation(data.site?.location);
+    renderWelcome(data.site);
     const hero = byId("hero-title").closest(".hero");
     if (data.site?.hero) {
       try {
@@ -217,6 +224,18 @@ byId("booking").onsubmit = async event => {
   submitting = false;
   await refresh(message);
 };
+
+function renderWelcome(site) {
+  if (!site) return;
+  if (site.brand) byId("welcome-brand").textContent = site.brand;
+  if (site.welcomeTitle) byId("welcome-title").textContent = site.welcomeTitle;
+  if (typeof site.welcomeNote === "string") byId("welcome-note").textContent = site.welcomeNote;
+  if (site.welcomeButton) byId("welcome-enter").textContent = site.welcomeButton;
+  for (const [field,variable] of [["welcomeDesktop","--welcome-desktop"],["welcomeMobile","--welcome-mobile"]]) {
+    if (!site[field]) continue;
+    resolvePhoto(site[field]).then(url => welcome.style.setProperty(variable,"url(" + JSON.stringify(url) + ")")).catch(() => {});
+  }
+}
 
 function renderLocation(location = {}) {
   const address = location.address || "";

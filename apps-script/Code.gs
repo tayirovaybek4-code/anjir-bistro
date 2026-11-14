@@ -249,6 +249,7 @@ function loadSite_() {
   return {
     brand,heading,hero:validImage_(hero) ? (hero || "") : "",
     location:{address:String(address || ""),yandex:mapLink_(yandex),gis:mapLink_(gis),google:mapLink_(google)},
+    ...loadWelcome_(),
     deposit: Number.isSafeInteger(deposit) && deposit >= 0 && deposit <= 100000000 ? deposit : 100000,
     confirmationTitle:confirmationTitle || "Sizni kutib qolamiz!",
     confirmationNote:confirmationNote || "Bizni tanlaganingiz uchun katta rahmat! Tashrifingiz maroqli o‘tsin. Sizni dasturxonimiz atrofida yana ko‘rishdan xursand bo‘lamiz.",
@@ -314,6 +315,7 @@ function adminRequest_(input) {
   try {
     if (input.action === "admin.menu") return json({ok:true,menu:saveMenu_(sheet("Bronlar").getParent(),input.item)});
     if (input.action === "admin.site") return json({ok:true,site:saveSite_(sheet("Bronlar").getParent(),input.site)});
+    if (input.action === "admin.welcome") return json({ok:true,site:saveWelcome_(input.site)});
     if (input.action !== "admin.list") return json({ok:false,error:"Amal topilmadi."});
     const tab = sheet("Bronlar");
     const rows = tab.getLastRow();
@@ -420,6 +422,34 @@ function saveSite_(active,site) {
     lock.releaseLock();
   }
   return loadSite_();
+}
+
+function loadWelcome_() {
+  const tab = sheet("Kirish");
+  const [welcomeTitle,welcomeNote,welcomeButton,welcomeDesktop,welcomeMobile] =
+    tab ? tab.getRange("B1:B5").getDisplayValues().flat() : [];
+  return {welcomeTitle,welcomeNote,welcomeButton,welcomeDesktop,welcomeMobile};
+}
+
+function saveWelcome_(input) {
+  const title = String(input.welcomeTitle || "").trim();
+  const note = String(input.welcomeNote || "").trim();
+  const button = String(input.welcomeButton || "").trim();
+  if (!title || title.length > 120 || note.length > 220 || !button || button.length > 35) throw Error("Kirish matnlarini tekshiring.");
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const document = sheet("Bronlar").getParent();
+    const tab = document.getSheetByName("Kirish") || document.insertSheet("Kirish");
+    const current = loadWelcome_();
+    const desktop = input.desktopUpload ? storePhoto_(document,input.desktopUpload) : (current.welcomeDesktop || "");
+    const mobile = input.mobileUpload ? storePhoto_(document,input.mobileUpload) : (current.welcomeMobile || "");
+    tab.getRange("A1:B5").setValues([["Sarlavha",plain_(title)],["Izoh",plain_(note)],["Tugma",plain_(button)],["Kompyuter",desktop],["Telefon",mobile]]);
+    SpreadsheetApp.flush();
+    return loadWelcome_();
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function mapLink_(value) {

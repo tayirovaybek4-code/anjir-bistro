@@ -4,8 +4,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Zarafshon — Menyu va stol band qilish</title>
 <meta name="description" content="Anjir Bistro zal xaritasidan stol tanlang va tashrifingizni rejalashtiring.">
-<link rel="stylesheet" href="style.css?v=classic">
-<header class="site-header">
+<link rel="stylesheet" href="style.css?v=welcome">
+<section class="welcome" id="welcome" aria-labelledby="welcome-title" hidden>
+  <div class="welcome-copy">
+    <p id="welcome-brand">Zarafshon</p>
+    <h1 id="welcome-title">Dasturxonimizga xush kelibsiz</h1>
+    <p id="welcome-note">Yaxshi taom, samimiy suhbat va esda qoladigan oqshom.</p>
+    <a class="hero-button" id="welcome-enter" href="#site-start">Kirish</a>
+  </div>
+</section>
+<header class="site-header" id="site-start" tabindex="-1">
   <div class="shell header-inner">
     <a class="brand" href="./" id="brand-name">Zarafshon</a>
     <nav aria-label="Asosiy menyu"><a href="#menu">Menyu</a><a href="#reservation">Stol band qilish</a></nav>
@@ -104,7 +112,7 @@
 <script src="dish-photos.js" defer></script>
 <script src="photos.js" defer></script>
 <script src="menu.js" defer></script>
-<script src="app.js?v=classic" defer></script>
+<script src="app.js?v=welcome" defer></script>
 </html>
 
 
