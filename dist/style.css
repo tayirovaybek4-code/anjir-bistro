@@ -311,7 +311,7 @@ footer{margin-top:35px!important;border-top:1px solid var(--line)}
 .main-hall-photo .table small{font-size:clamp(9px,2.5cqw,11px)}
 .main-hall-photo .table-position{display:none}
 .main-hall-photo .entrance{width:max-content;margin:8px auto 12px;padding:4px 8px;border-radius:5px;background:#382018;color:#fff4e1}
-.welcome[hidden]{display:none}
+.welcome[hidden],.skip-welcome .welcome{display:none}
 .welcome{
   display:grid;place-items:center;min-height:100vh;min-height:100svh;padding:32px 20px;
   color:#fff1d9;text-align:center;

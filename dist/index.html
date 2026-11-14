@@ -4,8 +4,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Zarafshon — Menyu va stol band qilish</title>
 <meta name="description" content="Anjir Bistro zal xaritasidan stol tanlang va tashrifingizni rejalashtiring.">
-<link rel="stylesheet" href="style.css?v=welcome">
-<section class="welcome" id="welcome" aria-labelledby="welcome-title" hidden>
+<script>if (location.hash) document.documentElement.classList.add("skip-welcome");</script>
+<link rel="preload" as="image" href="assets/welcome-mobile.webp" media="(max-width:700px) and (orientation:portrait)">
+<link rel="preload" as="image" href="assets/welcome-desktop.webp" media="(min-width:701px), (orientation:landscape)">
+<link rel="stylesheet" href="style.css?v=welcome-fast">
+<section class="welcome" id="welcome" aria-labelledby="welcome-title">
   <div class="welcome-copy">
     <p id="welcome-brand">Zarafshon</p>
     <h1 id="welcome-title">Dasturxonimizga xush kelibsiz</h1>
@@ -13,6 +16,12 @@
     <a class="hero-button" id="welcome-enter" href="#site-start">Kirish</a>
   </div>
 </section>
+<script>
+document.getElementById("welcome-enter").addEventListener("click", () => {
+  document.getElementById("welcome").hidden = true;
+  document.getElementById("site-start").focus({preventScroll:true});
+});
+</script>
 <header class="site-header" id="site-start" tabindex="-1">
   <div class="shell header-inner">
     <a class="brand" href="./" id="brand-name">Zarafshon</a>
@@ -112,7 +121,7 @@
 <script src="dish-photos.js" defer></script>
 <script src="photos.js" defer></script>
 <script src="menu.js" defer></script>
-<script src="app.js?v=welcome" defer></script>
+<script src="app.js?v=welcome-fast" defer></script>
 </html>
 
 

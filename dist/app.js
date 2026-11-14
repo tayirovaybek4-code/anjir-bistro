@@ -19,11 +19,6 @@ let request = 0;
 let retryId;
 let retryData;
 const welcome = byId("welcome");
-if (!location.hash) welcome.hidden = false;
-byId("welcome-enter").onclick = () => {
-  welcome.hidden = true;
-  byId("site-start").focus({preventScroll:true});
-};
 let activeHall = "main";
 const hallButtons = document.querySelectorAll("[data-hall]");
 const tableHall = table => table.hall === "vip" || (table.hall !== "main" && table.id === 10) ? "vip" : "main";
