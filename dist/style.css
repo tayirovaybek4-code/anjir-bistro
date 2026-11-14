@@ -287,4 +287,37 @@ footer{margin-top:35px!important;border-top:1px solid var(--line)}
 .private-floor .vip-tables .booth-furniture{width:min(78%,340px)}
 .private-floor .entrance,.private-floor .window{color:#f8e5c7}
 @media(max-width:480px){.private-floor .table-position{display:none}}
+.private-floor.main-hall-photo {
+  background:#42151d url("assets/booth.webp") center/100% 100% no-repeat;
+  padding-inline:clamp(14px,5%,38px);
+}
+.main-hall-photo .window {
+  position:relative;
+  width:min(72%,300px);
+  min-height:46px;
+  margin:15px auto 8px;
+  display:grid;
+  place-items:center;
+  border:3px solid #b68a52;
+  border-radius:32px 32px 5px 5px;
+  background:linear-gradient(90deg,#6c392c 0 3%,transparent 3% 48%,#a77545 48% 52%,transparent 52% 97%,#6c392c 97%),linear-gradient(#35525d,#78998c 58%,#425c3b);
+  color:#fff8e8;
+  text-shadow:0 1px 3px #17251b;
+  box-shadow:0 0 14px #f6cd8a65;
+}
+.private-floor.main-hall-photo .tables {
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  padding:18px 0;
+  gap:16px clamp(15px,6vw,45px);
+  background:none;
+}
+.private-floor.main-hall-photo .table-booth {
+  border:0;
+  border-radius:0;
+  background:none;
+  box-shadow:none;
+  aspect-ratio:1.48;
+  align-items:center;
+}
+.private-floor.main-hall-photo .booth-furniture {width:96%;margin:0}
 

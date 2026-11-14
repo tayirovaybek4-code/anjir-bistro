@@ -69,6 +69,7 @@ function render() {
   map.replaceChildren();
   const hallTables = (settings?.tables || []).filter(t => tableHall(t) === activeHall);
   map.classList.toggle("vip-tables", activeHall === "vip");
+  map.closest(".floor").classList.toggle("main-hall-photo", activeHall === "main");
   map.setAttribute("aria-label",activeHall === "vip" ? "VIP zal stollari" : "Asosiy zal stollari");
   if (settings && !hallTables.length) map.textContent = "Bu zalda hozircha stol yo‘q.";
   for (const t of hallTables) {
