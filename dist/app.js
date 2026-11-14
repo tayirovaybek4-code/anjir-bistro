@@ -93,7 +93,22 @@ function render() {
     };
     const booth = document.createElement("div");
     booth.className = "table-booth";
-    booth.append(button);
+    const furniture = document.createElement("div");
+    furniture.className = "booth-furniture";
+    const seats = document.createElement("div");
+    seats.className = "booth-seats";
+    seats.setAttribute("aria-hidden","true");
+    for (let index = 0; index < t.capacity; index++) {
+      const angle = (index / t.capacity) * Math.PI * 2 - Math.PI / 2;
+      const seat = document.createElement("i");
+      seat.style.left = (50 + 43 * Math.cos(angle)) + "%";
+      seat.style.top = (50 + 40 * Math.sin(angle)) + "%";
+      seat.style.rotate = (angle + Math.PI / 2) + "rad";
+      seats.append(seat);
+    }
+    booth.classList.toggle("large-booth",t.capacity > 8);
+    furniture.append(seats,button);
+    booth.append(furniture);
     map.append(booth);
     if (focused === button.dataset.tableId && !button.disabled) button.focus();
   }

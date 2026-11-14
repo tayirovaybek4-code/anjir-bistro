@@ -234,4 +234,35 @@ footer{margin-top:35px!important;border-top:1px solid var(--line)}
 .table-booth::after{right:7px;transform:rotate(16deg)}
 .private-floor .vip-tables .table-booth{min-height:196px}
 @media(max-width:450px){.table-booth{min-height:136px}.table-booth::before{left:5px}.table-booth::after{right:5px}}
+.private-floor .table-booth{
+  padding:24px 5px 18px;
+  background:
+    radial-gradient(ellipse at 50% 5%,#ffd69155,transparent 60%),
+    repeating-linear-gradient(90deg,#63242a00 0 7px,#24090f37 9px 12px,#b4665b22 14px 16px),
+    linear-gradient(150deg,#a46855,#63232d 38%,#360e18 85%);
+  border-radius:20px 20px 6px 6px;
+}
+.booth-furniture{position:relative;display:grid;place-items:center;width:min(100%,222px);aspect-ratio:1.4;isolation:isolate}
+.booth-seats{position:absolute;inset:0;pointer-events:none}
+.booth-seats i{
+  position:absolute;translate:-50% -50%;
+  width:clamp(13px,19%,32px);height:clamp(15px,26%,31px);
+  border:1px solid #a96a53;border-top:3px solid #cc8d6a;border-radius:40% 40% 30% 30%;
+  background:radial-gradient(ellipse at 50% 65%,#a65355,#6a2534 70%,#3e1520);
+  box-shadow:0 3px 4px #290c16aa,inset 0 0 0 2px #54202c;
+}
+.private-floor .table,.private-floor .vip-tables .table{
+  width:73%;min-height:0;aspect-ratio:1.25;margin:0;z-index:1;
+  border-radius:50%;border-color:#b88d53;
+  background:
+    repeating-linear-gradient(112deg,transparent 0 16px,#bb956b22 17px,transparent 19px 34px),
+    radial-gradient(ellipse at 40% 25%,#fff9ed,#ebd4ad);
+}
+.private-floor .table::before,.private-floor .table::after{content:none}
+.private-floor .table[aria-pressed=true]{background:#63242a;box-shadow:0 0 0 3px #f2c476,0 0 15px #efb65388}
+.private-floor .table:disabled{background:#d5c6b5}
+.large-booth .booth-furniture{width:min(100%,340px)}
+.large-booth .booth-seats i{width:13%;height:19%}
+.private-floor .vip-tables .table-booth{min-height:230px}
+@media(max-width:480px){.private-floor .table-booth{min-height:128px}.private-floor .table strong{font-size:17px}.private-floor .table small,.private-floor .table-position{font-size:9px}}
 
