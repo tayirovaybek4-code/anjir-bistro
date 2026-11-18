@@ -25,8 +25,11 @@ function renderKitchen() {
       const row=document.createElement("div"); row.className="kitchen-dish";
       const image=document.createElement("img"); image.alt=item.name; image.loading="lazy";
       const source=item.image || "assets/dish-"+item.id+".webp";
-      if (/^(assets\/[a-z0-9.-]+|https:\/\/[^\s]+)$/i.test(source)) image.src=source;
       image.onerror=()=>image.remove();
+      if (/^photo:[a-f0-9-]{36}$/i.test(source)) {
+        resolvePhoto(source).then(url=>{ image.src=url; },()=>image.remove());
+      } else if (/^(assets\/[a-z0-9.-]+|https:\/\/[^\s]+)$/i.test(source)) image.src=source;
+      else image.hidden=true;
       const text=document.createElement("div"),name=document.createElement("h3"),note=document.createElement("p");
       name.textContent=item.name+" × "+item.quantity; note.className="kitchen-note"; note.textContent=item.note || "Maxsus izoh yo‘q";
       text.append(name,note); row.append(image,text); card.append(row);
@@ -48,15 +51,32 @@ async function loadKitchen(data={action:"kitchen.list"}) {
     const result=await kitchenApi(data); kitchenOrders=result.orders;
     el("kitchen-message").textContent="Yangilandi · "+new Date().toLocaleTimeString("uz-UZ");
     return true;
-  } catch(error) { el("kitchen-message").textContent=error.message+(kitchenOrders.length ? " Oxirgi ko‘rinayotgan ma’lumot eskirgan bo‘lishi mumkin." : ""); return false; }
+  } catch(error) {
+    const message=["TimeoutError","AbortError"].includes(error.name)
+      ? "Server vaqtida javob bermadi. Internet aloqasini tekshirib, qayta urinib ko‘ring."
+      : error.message;
+    el("kitchen-message").textContent=message+(kitchenOrders.length ? " Oxirgi ko‘rinayotgan ma’lumot eskirgan bo‘lishi mumkin." : "");
+    return false;
+  }
   finally { kitchenBusy=false; renderKitchen(); }
 }
 el("kitchen-login").onsubmit=async event=> {
-  event.preventDefault(); kitchenKey=el("kitchen-key").value;
-  if(await loadKitchen()) {
-    el("kitchen-key").value=""; el("kitchen-login").hidden=true; el("kitchen-board").hidden=false;
-    clearInterval(kitchenTimer); kitchenTimer=setInterval(()=>loadKitchen(),15000);
-  } else kitchenKey="";
+  event.preventDefault();
+  if(kitchenBusy) return;
+  const submit=el("kitchen-submit");
+  kitchenKey=el("kitchen-key").value;
+  submit.disabled=true; submit.textContent="Kirilmoqda…";
+  el("kitchen-key").disabled=true;
+  el("kitchen-message").textContent="Oshxona serveriga ulanmoqda…";
+  try {
+    if(await loadKitchen()) {
+      el("kitchen-key").value=""; el("kitchen-login").hidden=true; el("kitchen-board").hidden=false;
+      clearInterval(kitchenTimer); kitchenTimer=setInterval(()=>loadKitchen(),15000);
+    } else kitchenKey="";
+  } finally {
+    submit.disabled=false; submit.textContent="Kirish";
+    el("kitchen-key").disabled=false;
+  }
 };
 el("kitchen-refresh").onclick=()=>loadKitchen();
 el("kitchen-logout").onclick=()=> {
