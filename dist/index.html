@@ -7,7 +7,7 @@
 <script>if (!location.hash) document.documentElement.classList.add("welcome-active");</script>
 <link rel="preload" as="image" href="assets/welcome-mobile.webp" media="(max-width:700px) and (orientation:portrait)">
 <link rel="preload" as="image" href="assets/welcome-desktop.webp" media="(min-width:701px), (orientation:landscape)">
-<link rel="stylesheet" href="style.css?v=table-360-v2">
+<link rel="stylesheet" href="style.css?v=google-icon-v1">
 <section class="welcome" id="welcome" aria-labelledby="welcome-title">
   <div class="welcome-copy">
     <p id="welcome-brand">Zarafshon</p>
@@ -28,7 +28,7 @@ window.addEventListener("hashchange", () => {
 <header class="site-header" id="site-start" tabindex="-1">
   <div class="shell header-inner">
     <a class="brand" href="./" id="brand-name">Zarafshon</a>
-    <nav aria-label="Asosiy menyu"><a href="#reservation">Zal · 360°</a><a href="kitchen.html">Oshpaz paneli</a><button class="outline" id="register-open" type="button">Ro‘yxatdan o‘tish</button><a href="#menu">Menyu</a><a href="#reservation">Stol band qilish</a></nav>
+    <nav aria-label="Asosiy menyu"><a href="#reservation">Zal · 360°</a><a href="kitchen.html">Oshpaz paneli</a><div id="google-signin" class="google-signin" title="Google orqali ro‘yxatdan o‘tish"></div><button class="outline" id="register-open" type="button">Ro‘yxatdan o‘tish</button><a href="#menu">Menyu</a><a href="#reservation">Stol band qilish</a></nav>
   </div>
 </header>
 <main>
@@ -93,7 +93,7 @@ window.addEventListener("hashchange", () => {
     </nav>
   </div>
 </section>
-<footer class="shell"><span id="footer-brand">Zarafshon</span><a href="#location">Manzil</a><a href="https://t.me/Aybek_Tairov_bot">Telegram orqali bron</a><a href="admin.html">Admin panel</a><a href="kitchen.html">Oshxona</a></footer>
+<footer class="shell"><span id="footer-brand">Zarafshon</span><a href="#location">Manzil</a><a href="https://t.me/Aybek_Tairov_bot">Telegram orqali bron</a><a href="admin.html">Admin panel</a><a href="kitchen.html">Oshxona</a><a href="privacy.html">Maxfiylik</a></footer>
 <dialog id="reservations"><div class="card-top"><h2>Bronlarim</h2><form method="dialog"><button class="outline" aria-label="Yopish">✕</button></form></div><div id="reservation-list"></div></dialog>
 <dialog id="confirmation" aria-labelledby="confirmation-title">
   <form method="dialog" class="confirmation-close"><button class="outline" aria-label="Oynani yopish">✕ Yopish</button></form>
@@ -120,11 +120,11 @@ window.addEventListener("hashchange", () => {
     <form method="dialog"><button class="hero-button">Tayyor</button></form>
   </div>
 </dialog>
-<dialog id="registration"><form method="dialog"><button class="outline">Yopish ✕</button></form><h2>Doimiy mijozimiz bo‘ling</h2><div id="google-signin"></div><p id="registration-message" role="status">Google orqali kirish sozlamalari yuklanmoqda.</p></dialog>
+<dialog id="registration"><form method="dialog"><button class="outline">Yopish ✕</button></form><h2 id="registration-title">Doimiy mijozimiz bo‘ling</h2><p id="registration-message" role="status">Google orqali kirish sozlamalari yuklanmoqda.</p></dialog>
 <dialog id="table-preview" class="scene-dialog"><div class="scene-heading"><div><p class="scene-eyebrow">ZARAFSHON · VIRTUAL TASHRIF</p><h2 id="preview-title">Stol · 360°</h2></div><form method="dialog"><button class="scene-icon" aria-label="Yopish">✕</button></form></div><div class="scene-viewport"><canvas id="table-canvas" aria-label="Stolning aylantiriladigan uch o‘lchamli modeli"></canvas><div id="scene-labels" aria-hidden="true"></div><div class="scene-badge">3D MODEL <span>•</span> 360°</div><p id="scene-hint">Aylantirish uchun suring · Yaqinlashtirish uchun ikki barmoqdan foydalaning</p><p id="scene-error" role="status" hidden></p></div><div class="scene-controls"><label>Aylantirish <output id="rotation-value">0°</output><input id="table-rotation" type="range" min="0" max="360" value="0"></label><div class="scene-buttons"><button id="scene-zoom-out" class="scene-icon" aria-label="Uzoqlashtirish">−</button><button id="scene-zoom-in" class="scene-icon" aria-label="Yaqinlashtirish">+</button><button id="scene-auto" class="scene-icon" aria-pressed="false">↻ Avto</button><button id="scene-reset" class="scene-icon">Tiklash</button><button id="scene-full" class="scene-icon" aria-label="To‘liq ekran">⛶</button></div></div><p class="scene-disclaimer">Stol va zalning namunaviy 3D modeli. Haqiqiy joylashuv va interyer farq qilishi mumkin.</p></dialog>
 <section id="table-order-bar" class="table-order-bar" hidden><strong id="table-order-label"></strong><button class="primary" id="send-table-order" type="button">Oshxonaga yuborish</button><button class="outline" id="leave-table-order" type="button">Chiqish</button><p id="table-order-message" role="status"></p></section>
 <script src="table-scene.js" defer></script>
-<script src="table-service.js" defer></script>
+<script src="table-service.js?v=google-icon-v1" defer></script>
 <script src="config.js" defer></script>
 <script src="menu-data.js" defer></script>
 <script src="dish-photos.js" defer></script>

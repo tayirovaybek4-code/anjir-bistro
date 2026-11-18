@@ -45,25 +45,75 @@ window.previewTable = table => {
   serviceElement("table-preview").showModal();
   window.tableScene.open(table,settings?.tables || window.HALL_TABLES || [table]);
 };
-serviceElement("register-open").onclick = () => serviceElement("registration").showModal();
+const registrationDialog = serviceElement("registration");
+const registrationTitle = serviceElement("registration-title");
+const registrationMessage = serviceElement("registration-message");
+const googleSignIn = serviceElement("google-signin");
+const registrationFallback = serviceElement("register-open");
+registrationFallback.onclick = () => {
+  if (!registrationDialog.open) registrationDialog.showModal();
+};
 let googleConfigured = false;
 window.setupGoogleRegistration = clientId => {
   if (googleConfigured) return;
-  if (!clientId) { serviceElement("registration-message").textContent="Google orqali kirish hali ulanmagan."; return; }
-  googleConfigured=true;
-  const script=document.createElement("script"); script.src="https://accounts.google.com/gsi/client";
-  script.onerror=()=> { googleConfigured=false; serviceElement("registration-message").textContent="Google yuklanmadi. Sahifani yangilang."; };
-  script.onload=()=> {
-    google.accounts.id.initialize({client_id:clientId,callback:async response=> {
-      serviceElement("registration-message").textContent="Ro‘yxatdan o‘tilmoqda…";
-      try {
-        const result=await api({action:"auth.google",credential:response.credential});
-        serviceElement("registration-message").textContent=result.message;
-        if(result.name) serviceElement("customer").value=result.name;
-      } catch(error) { serviceElement("registration-message").textContent=error.message; }
-    }});
-    google.accounts.id.renderButton(serviceElement("google-signin"),{theme:"outline",size:"large",text:"signup_with"});
-    serviceElement("registration-message").textContent="Google hisobingiz bilan ro‘yxatdan o‘ting.";
+  if (!clientId) {
+    registrationMessage.textContent = "Google orqali kirish hali ulanmagan.";
+    return;
+  }
+  googleConfigured = true;
+  googleSignIn.setAttribute("aria-busy","true");
+  const script = document.createElement("script");
+  script.src = "https://accounts.google.com/gsi/client";
+  script.async = true;
+  let observer;
+  let timer;
+  const failed = () => {
+    clearTimeout(timer);
+    observer?.disconnect();
+    googleConfigured = false;
+    googleSignIn.replaceChildren();
+    googleSignIn.removeAttribute("aria-busy");
+    registrationFallback.hidden = false;
+    registrationTitle.textContent = "Google orqali ro‘yxatdan o‘tish";
+    registrationMessage.textContent = "Google tugmasini yuklab bo‘lmadi. Internet aloqasini tekshirib, sahifani yangilang.";
+    script.remove();
+  };
+  script.onerror = failed;
+  timer = setTimeout(failed,15000);
+  script.onload = () => {
+    try {
+      const identity = window.google?.accounts?.id;
+      if (!identity) throw Error("Google kirish xizmati yuklanmadi.");
+      identity.initialize({client_id:clientId,callback:async response => {
+        registrationTitle.textContent = "Ro‘yxatdan o‘tilmoqda";
+        registrationMessage.textContent = "Google hisobingiz tekshirilmoqda…";
+        if (!registrationDialog.open) registrationDialog.showModal();
+        try {
+          const result = await api({action:"auth.google",credential:response.credential});
+          if (result.ok !== true) throw Error("Ro‘yxatdan o‘tish tasdiqlanmadi.");
+          registrationTitle.textContent = "Ro‘yxatdan o‘tdingiz!";
+          registrationMessage.textContent = result.message || "Siz ro‘yxatdan o‘tdingiz! Bizning doimiy mijozimizga aylandingiz. Sizga rahmat!";
+          if (result.name) serviceElement("customer").value = result.name;
+        } catch (error) {
+          registrationTitle.textContent = "Qayta urinib ko‘ring";
+          registrationMessage.textContent = error.message;
+        }
+      }});
+      const rendered = () => {
+        if (!googleSignIn.querySelector("iframe, [role=button]")) return;
+        clearTimeout(timer);
+        observer?.disconnect();
+        googleSignIn.removeAttribute("aria-busy");
+        registrationFallback.hidden = true;
+        registrationMessage.textContent = "Sahifa yuqorisidagi Google belgisini bosib, hisobingizni tanlang.";
+      };
+      observer = new MutationObserver(rendered);
+      observer.observe(googleSignIn,{childList:true,subtree:true});
+      identity.renderButton(googleSignIn,{type:"icon",theme:"outline",size:"large",shape:"circle",text:"signup_with"});
+      rendered();
+    } catch (error) {
+      failed();
+    }
   };
   document.head.append(script);
 };
