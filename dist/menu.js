@@ -3,12 +3,13 @@
 const catalog = document.querySelector("#menu-items");
 const categories = document.querySelector("#categories");
 const order = new Map();
+const orderNotes = new Map();
 const money = value => new Intl.NumberFormat("uz-UZ").format(value) + " so‘m";
 let menuItems = window.MENU_ITEMS;
 let activeCategory = menuItems[0].category;
 
 function orderPayload() {
-  return [...order].map(([id, quantity]) => ({id, quantity}));
+  return [...order].map(([id, quantity]) => ({id, quantity, note:orderNotes.get(id) || ""}));
 }
 
 function portionControls(item) {
@@ -64,7 +65,18 @@ function renderOrder() {
     const label = document.createElement("span");
     label.textContent = item.name + " · " + money(item.price * quantity);
     row.append(label, portionControls(item));
-    lines.append(row);
+    const note = document.createElement("input");
+    note.placeholder = "Masalan: tuzi kam, achchiqroq, yaxshiroq qovurilsin";
+    note.maxLength = 300;
+    note.disabled = !window.ORDER_NOTES_ENABLED;
+    if (note.disabled) note.placeholder = "Oshpazga izoh: server ulanishi kutilmoqda";
+    note.setAttribute("aria-label", item.name + " uchun oshpazga izoh");
+    note.value = orderNotes.get(item.id) || "";
+    note.oninput = () => orderNotes.set(item.id,note.value);
+    const wrapper = document.createElement("div");
+    wrapper.className = "order-note";
+    wrapper.append(row,note);
+    lines.append(wrapper);
   }
   document.querySelector("#preorder").hidden = !order.size;
   document.querySelector("#order-link").hidden = !order.size;
@@ -142,4 +154,3 @@ function showCategory() {
 }
 
 renderMenu();
-

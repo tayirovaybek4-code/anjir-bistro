@@ -23,6 +23,12 @@ const welcome = byId("welcome");
 let activeHall = "main";
 const hallButtons = document.querySelectorAll("[data-hall]");
 const tableHall = table => table.hall === "vip" || (table.hall !== "main" && table.id === 10) ? "vip" : "main";
+const hallLayoutTables = () => settings?.tables || window.HALL_TABLES || [];
+function tableRow(table) {
+  const hall = hallLayoutTables().filter(t => tableHall(t) === tableHall(table));
+  const index = Math.max(0,hall.findIndex(t => t.id === table.id));
+  return tableHall(table) === "vip" ? index + 1 : index < 6 ? Math.floor(index / 2) + 1 : 4 + Math.floor((index - 6) / 3);
+}
 
 for (const button of hallButtons) {
   button.onclick = () => {
@@ -57,7 +63,7 @@ async function api(data) {
 }
 
 function available(table, start) {
-  return !loading && !submitting && start > Date.now() && table.capacity >= Number(guests.value)
+  return Boolean(settings) && !loading && !submitting && start > Date.now() && table.capacity >= Number(guests.value)
     && !busy.some(r => r.table === table.id && r.start < start + settings.duration * 60000
       && start < r.start + r.duration * 60000);
 }
@@ -69,7 +75,8 @@ function render() {
   if (!submitting && (!table || !available(table, start))) selected = null;
   const focused = document.activeElement?.dataset?.tableId;
   map.replaceChildren();
-  const hallTables = (settings?.tables || []).filter(t => tableHall(t) === activeHall);
+  const hallTables = hallLayoutTables().filter(t => tableHall(t) === activeHall);
+  map.dataset.layoutSource = settings ? "live" : "static";
   map.classList.toggle("vip-tables", activeHall === "vip");
   map.closest(".floor").classList.toggle("main-hall-photo", activeHall === "main");
   map.setAttribute("aria-label",activeHall === "vip" ? "VIP zal stollari" : "Asosiy zal stollari");
@@ -87,13 +94,14 @@ function render() {
     const size = document.createElement("small");
     size.textContent = t.capacity + " o‘rin";
     const position = document.createElement("span");
-    position.textContent = "Qator " + (t.row || Math.ceil(t.id / 3));
+    position.textContent = "Qator " + tableRow(t);
     position.className = "table-position";
     button.append(label, size, position);
     button.onclick = () => {
-      selected = selected === t.id ? null : t.id;
+      selected = t.id;
       feedback.textContent = "";
       render();
+      window.previewTable(t);
     };
     const booth = document.createElement("div");
     booth.className = "table-booth";
@@ -112,14 +120,21 @@ function render() {
     }
     booth.classList.toggle("large-booth",t.capacity > 8);
     furniture.append(seats,button);
-    booth.append(furniture);
+    const preview = document.createElement("button");
+    preview.type = "button";
+    preview.className = "outline";
+    preview.dataset.tablePreview = t.id;
+    preview.setAttribute("aria-label",t.name + "-stolning 360° ko‘rinishini ochish");
+    preview.textContent = "360° ko‘rish";
+    preview.onclick = () => window.previewTable(t);
+    booth.append(furniture,preview);
     map.append(booth);
     if (focused === button.dataset.tableId && !button.disabled) button.focus();
   }
   reserve.disabled = loading || submitting || selected === null;
-  byId("selection").textContent = selected === null ? "Xaritadan stol tanlang" :
+  byId("selection").textContent = selected === null ? (loading ? "360° ko‘rinishni ochishingiz mumkin. Bron uchun bandlik tekshirilmoqda." : "Xaritadan stol tanlang") :
     table.name + "-stol tanlandi. " + (tableHall(table) === "vip" ? "VIP zal" : "Asosiy zal") +
-    " · " + (table.row || Math.ceil(table.id / 3)) + "-qator · " + table.capacity +
+    " · " + tableRow(table) + "-qator · " + table.capacity +
     " o‘rin. Sizni " + date.value + " kuni soat " + time.value + " da kutamiz.";
 }
 
@@ -129,13 +144,17 @@ async function refresh(message = "", autoNext = false) {
   loading = true;
   time.disabled = true;
   reserve.disabled = true;
-  for (const button of byId("tables").querySelectorAll("button")) button.disabled = true;
-  feedback.textContent = "Bandlik tekshirilmoqda…";
+  // Keep static 360° viewing usable while live availability is loading.
+  render();
+  feedback.textContent = "Bandlik tekshirilmoqda… 360° ko‘rinishni hozirdan ochishingiz mumkin.";
   retryAvailability.hidden = true;
   try {
     const data = await api();
     if (request !== current) return;
     settings = data.settings;
+    window.TABLE_ORDERS_ENABLED = data.features?.tableOrders === true;
+    window.ORDER_NOTES_ENABLED = data.features?.orderNotes === true;
+    window.setupGoogleRegistration?.(data.googleClientId);
     busy = data.busy;
     const validTimes = settings.times.filter(hour => startAt(date.value, hour) > Date.now());
     if (!validTimes.length && autoNext) {
@@ -174,7 +193,7 @@ async function refresh(message = "", autoNext = false) {
     loading = false;
   } catch (error) {
     if (request !== current) return;
-    feedback.textContent = [message,"Bandlikni tekshirib bo‘lmadi. Qayta urinib ko‘ring."].filter(Boolean).join(" ");
+    feedback.textContent = [message,"Bandlikni tekshirib bo‘lmadi. 360° ko‘rinish ochiq, bron uchun qayta urinib ko‘ring."].filter(Boolean).join(" ");
     retryAvailability.hidden = false;
   }
   render();
@@ -271,7 +290,7 @@ function showConfirmation(booking, table, result,bookingId) {
   const months = ["yanvar","fevral","mart","aprel","may","iyun","iyul","avgust","sentabr","oktabr","noyabr","dekabr"];
   const day = dateNumber + "-" + months[month - 1] + ", " + year;
   for (const [label,value] of [["Sana",day],["Vaqt",booking.hour],
-    ["Joy",table.name + "-stol · " + (tableHall(table) === "vip" ? "VIP zal" : "Asosiy zal") + " · " + (table.row || Math.ceil(table.id/3)) + "-qator"],
+    ["Joy",table.name + "-stol · " + (tableHall(table) === "vip" ? "VIP zal" : "Asosiy zal") + " · " + tableRow(table) + "-qator"],
     ["Mehmonlar",booking.guests + " kishi"]]) {
     const term = document.createElement("dt");
     const description = document.createElement("dd");
@@ -330,13 +349,19 @@ function renderHistory() {
       when.textContent += " · " + record.status;
       api({action:"status",id:record.id}).then(result => {
         when.textContent = record.day + " · " + record.hour + " · " + result.status;
-        if (!["Band","Kutilmoqda"].includes(result.status)) row.querySelector("button")?.remove();
+        if (!["Band","Kutilmoqda"].includes(result.status)) row.querySelectorAll("button").forEach(button => button.remove());
       }).catch(() => {
         when.textContent += " · Holat yangilanmadi";
       });
     }
     details.append(title, when);
     row.append(details);
+    const addOrder = document.createElement("button");
+    addOrder.className = "outline";
+    addOrder.textContent = "Qo‘shimcha buyurtma";
+    addOrder.onclick = () => window.openTableOrder(record);
+    addOrder.hidden = !window.TABLE_ORDERS_ENABLED;
+    row.append(addOrder);
     if (startAt(record.day,record.hour) > Date.now()) {
       const cancel = document.createElement("button");
       cancel.className = "outline";
@@ -366,5 +391,4 @@ byId("manage-confirmed-booking").onclick = () => {
   dialog.showModal();
 };
 refresh("", true);
-
 
