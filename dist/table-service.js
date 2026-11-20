@@ -134,40 +134,20 @@ serviceElement("customer-logout").onclick=async()=>{
 updateCustomerButton();
 let googleConfigured = false;
 window.setupGoogleRegistration = clientId => {
-  if(googleConfigured)return;
-  if(!clientId){registrationMessage.textContent="Google orqali kirish hozircha mavjud emas. Keyinroq qayta urinib ko‘ring.";return;}
-  googleConfigured=true;googleSignIn.setAttribute("aria-busy","true");
-  const script=document.createElement("script");script.src="https://accounts.google.com/gsi/client";script.async=true;
-  let observer,timer;
-  const failed=()=>{
-    clearTimeout(timer);observer?.disconnect();googleConfigured=false;googleSignIn.replaceChildren();googleSignIn.removeAttribute("aria-busy");
-    registrationMessage.textContent="Google tugmasi yuklanmadi. Internetni tekshirib, sahifani yangilang.";script.remove();
-  };
-  script.onerror=failed;timer=setTimeout(failed,15000);
-  script.onload=()=>{
+  if(googleConfigured || !clientId)return;
+  googleConfigured=true;
+  const button=document.createElement("button");button.type="button";button.className="outline";
+  button.textContent="Google orqali ro‘yxatdan o‘tish";
+  button.onclick=()=>{
     try{
-      const identity=window.google?.accounts?.id;if(!identity)throw Error("Google yuklanmadi.");
-      identity.initialize({client_id:clientId,use_fedcm_for_button:false,ux_mode:"popup",button_auto_select:false,callback:async response=>{
-        registrationTitle.textContent="Hisob tekshirilmoqda";registrationMessage.textContent="Bir oz kuting…";
-        if(!registrationDialog.open)registrationDialog.showModal();
-        try{
-          const result=await api({action:"auth.google",credential:response.credential});
-          if(!/^[a-f0-9]{64}$/.test(result.sessionToken || "") || !result.user?.id || !(result.sessionExpiresAt>Date.now()))throw Error("Kabinet ulanishini tasdiqlab bo‘lmadi. Qayta urinib ko‘ring.");
-          customerSessionVersion++;customerSession={token:result.sessionToken,expiresAt:result.sessionExpiresAt};customerProfile=result.user;
-          try{localStorage.setItem(customerSessionKey,JSON.stringify(customerSession));}catch{}
-          updateCustomerButton();
-          registrationTitle.textContent="Xush kelibsiz!";registrationMessage.textContent=result.message;
-          if(result.user.name)serviceElement("customer").value=result.user.name;
-        }catch(error){registrationTitle.textContent="Qayta urinib ko‘ring";registrationMessage.textContent=error.message;}
-      }});
-      const rendered=()=>{
-        if(!googleSignIn.querySelector("iframe, [role=button]"))return;
-        clearTimeout(timer);observer?.disconnect();googleSignIn.removeAttribute("aria-busy");
-        registrationMessage.textContent="Google hisobingiz bilan kiring. Keyin o‘z bron va buyurtmalaringizni kabinetingizdan boshqarasiz.";
-      };
-      observer=new MutationObserver(rendered);observer.observe(googleSignIn,{childList:true,subtree:true});
-      identity.renderButton(googleSignIn,{type:"standard",theme:"outline",size:"large",shape:"pill",width:280,text:"signup_with"});rendered();
-    }catch{failed();}
+      const random=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),v=>v.toString(16).padStart(2,"0")).join("");
+      const flow={state:random(),nonce:random(),expiresAt:Date.now()+600000};
+      sessionStorage.setItem("zarafshon-google-flow",JSON.stringify(flow));
+      const url=new URL("https://accounts.google.com/o/oauth2/v2/auth");
+      url.search=new URLSearchParams({client_id:clientId,redirect_uri:new URL("google-callback.html",location.href).href.split("?")[0].split("#")[0],response_type:"id_token",scope:"openid email profile",nonce:flow.nonce,state:flow.state,prompt:"select_account"}).toString();
+      location.assign(url.href);
+    }catch{registrationMessage.textContent="Brauzerda sayt ma’lumotlarini saqlashga ruxsat bering va qayta urinib ko‘ring.";}
   };
-  document.head.append(script);
+  googleSignIn.replaceChildren(button);
+  registrationMessage.textContent="Google hisobingizni tanlang. Tasdiqlangach, saytdagi kabinetingizga qaytasiz.";
 };
