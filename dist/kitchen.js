@@ -1,6 +1,6 @@
 "use strict";
 const el=id=>document.getElementById(id);
-let kitchenKey="", kitchenOrders=[], kitchenFilter="active", kitchenBusy=false, kitchenTimer;
+let kitchenKey="", kitchenOrders=[], kitchenFilter="active", kitchenBusy=false, kitchenTimer, kitchenSession=0;
 async function kitchenApi(data) {
   if (!window.BOOKING_ENDPOINT) throw Error("Oshxona serveri ulanmagan.");
   const response=await fetch(window.BOOKING_ENDPOINT,{method:"POST",headers:{"Content-Type":"text/plain"},body:JSON.stringify({...data,key:kitchenKey}),signal:AbortSignal.timeout(20000)});
@@ -46,12 +46,16 @@ function renderKitchen() {
 }
 async function loadKitchen(data={action:"kitchen.list"}) {
   if(kitchenBusy) return false;
+  const session=kitchenSession;
   kitchenBusy=true; renderKitchen();
   try {
-    const result=await kitchenApi(data); kitchenOrders=result.orders;
+    const result=await kitchenApi(data);
+    if(session!==kitchenSession) return false;
+    kitchenOrders=result.orders;
     el("kitchen-message").textContent="Yangilandi · "+new Date().toLocaleTimeString("uz-UZ");
     return true;
   } catch(error) {
+    if(session!==kitchenSession) return false;
     const message=["TimeoutError","AbortError"].includes(error.name)
       ? "Server vaqtida javob bermadi. Internet aloqasini tekshirib, qayta urinib ko‘ring."
       : error.message;
@@ -80,7 +84,7 @@ el("kitchen-login").onsubmit=async event=> {
 };
 el("kitchen-refresh").onclick=()=>loadKitchen();
 el("kitchen-logout").onclick=()=> {
-  kitchenKey=""; kitchenOrders=[]; clearInterval(kitchenTimer); renderKitchen();
+  kitchenSession++; kitchenKey=""; kitchenOrders=[]; clearInterval(kitchenTimer); renderKitchen();
   el("kitchen-board").hidden=true; el("kitchen-login").hidden=false; el("kitchen-message").textContent="";
 };
 for(const button of document.querySelectorAll("[data-filter]")) button.onclick=()=> {

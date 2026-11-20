@@ -9,11 +9,15 @@ let menu = [];
 let selectedDish = "";
 
 async function request(action, data = {}) {
-  const response = await fetch(window.BOOKING_ENDPOINT, {
+  let response;
+  try { response = await fetch(window.BOOKING_ENDPOINT, {
     method:"POST",
     headers:{"Content-Type":"text/plain;charset=UTF-8"},
-    body:JSON.stringify({action,key,...data})
-  });
+    body:JSON.stringify({action,key,...data}),signal:AbortSignal.timeout(20000)
+  }); } catch (error) {
+    throw Error(["TimeoutError","AbortError"].includes(error.name) ? "Server vaqtida javob bermadi. Qayta urinib ko‘ring." : "Serverga ulanib bo‘lmadi. Internet aloqasini tekshiring.");
+  }
+  if (!response.ok) throw Error("Server javob bermadi. Qayta urinib ko‘ring.");
   const result = await response.json();
   if (!result.ok) throw new Error(result.error || "Server javob bermadi.");
   return result;
@@ -239,4 +243,3 @@ welcomeForm.onsubmit = event => {
     return "Kirish ekrani saqlandi.";
   },byId("welcome-status"));
 };
-

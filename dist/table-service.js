@@ -10,19 +10,23 @@ window.openTableOrder = record => {
   serviceElement("reservations").close();
   serviceElement("table-order-bar").hidden = false;
   serviceElement("table-order-label").textContent = "Stol "+record.table+" · Qo‘shimcha buyurtma";
-  serviceElement("table-order-message").textContent = "Menyudan taom tanlang. Izohni tashrif tafsilotlarida yozing.";
+  serviceElement("table-order-message").textContent = "Menyudan taom tanlang. Oshpazga izohni savatchada yozing.";
   serviceElement("order-link").textContent = "Taomlar va izohlarni tekshirish";
+  serviceElement("preorder-title").textContent = "Qo‘shimcha buyurtma";
+  render();renderOrder();
   location.hash = "menu";
   api({action:"order.list",id:record.id}).then(result => {
     if (tableOrderRecord?.id !== record.id) return;
     serviceElement("table-order-message").textContent = result.orders.length ? result.orders.map(r=>r.status+" · "+r.order.items.map(i=>i.name+" × "+i.quantity).join(", ")).join(" | ") : "Menyudan taom tanlang.";
-  }).catch(error=>{ serviceElement("table-order-message").textContent = error.message; });
+  }).catch(error=>{ if (tableOrderRecord?.id === record.id) serviceElement("table-order-message").textContent = error.message; });
 };
 serviceElement("leave-table-order").onclick = () => {
   if (tableSending) return;
   tableOrderRecord = null;
   serviceElement("table-order-bar").hidden = true;
   serviceElement("order-link").textContent = "Buyurtma bilan stol band qilish";
+  serviceElement("preorder-title").textContent = "Oldindan buyurtma";
+  render();renderOrder();
 };
 serviceElement("send-table-order").onclick = async () => {
   if (!window.TABLE_ORDERS_ENABLED || !tableOrderRecord || tableSending) return;
@@ -31,6 +35,7 @@ serviceElement("send-table-order").onclick = async () => {
   const fingerprint = JSON.stringify([tableOrderRecord.id,payload]);
   if (fingerprint !== tableRequestFingerprint) { tableRequestId = crypto.randomUUID(); tableRequestFingerprint = fingerprint; }
   tableSending = true;
+  window.ORDER_SUBMITTING = true;renderOrder();
   serviceElement("send-table-order").disabled = true;
   try {
     const result = await api({action:"order.add",id:tableOrderRecord.id,requestId:tableRequestId,order:payload});
@@ -38,7 +43,7 @@ serviceElement("send-table-order").onclick = async () => {
     order.clear(); orderNotes.clear(); renderOrder(); tableRequestFingerprint = null;
     serviceElement("table-order-message").textContent = "Buyurtma oshxonaga yuborildi!";
   } catch(error) { serviceElement("table-order-message").textContent = error.message; }
-  finally { tableSending=false; serviceElement("send-table-order").disabled=false; }
+  finally { tableSending=false; window.ORDER_SUBMITTING=false;renderOrder();serviceElement("send-table-order").disabled=false; }
 };
 window.previewTable = table => {
   serviceElement("preview-title").textContent = table.name+"-stol · "+table.capacity+" o‘rin · 360°";
@@ -50,70 +55,119 @@ const registrationTitle = serviceElement("registration-title");
 const registrationMessage = serviceElement("registration-message");
 const googleSignIn = serviceElement("google-signin");
 const registrationFallback = serviceElement("register-open");
-registrationFallback.onclick = () => {
-  if (!registrationDialog.open) registrationDialog.showModal();
+const customerSessionKey = "zarafshon-customer-session-v1";
+let customerSession = null;
+let customerProfile = null;
+let customerSessionVersion = 0;
+try {
+  const stored = JSON.parse(localStorage.getItem(customerSessionKey) || "null");
+  if (stored && /^[a-f0-9]{64}$/.test(stored.token || "") && stored.expiresAt>Date.now()) customerSession=stored;
+} catch {}
+window.customerSessionToken = () => customerSession?.expiresAt>Date.now() ? customerSession.token : "";
+window.customerAccountProfile = () => customerProfile;
+function updateCustomerButton() {
+  const signedIn=Boolean(customerProfile);
+  registrationFallback.classList.toggle("signed-in",signedIn);
+  serviceElement("customer-register-label").hidden=signedIn;
+  const avatar=serviceElement("customer-avatar"), initials=serviceElement("customer-initials");
+  avatar.hidden=true; initials.hidden=!signedIn;
+  registrationFallback.setAttribute("aria-label",signedIn ? "Mening kabinetim" : "Ro‘yxatdan o‘tish");
+  registrationFallback.title=signedIn ? customerProfile.name+" · Mening kabinetim" : "Ro‘yxatdan o‘tish";
+  if(signedIn) {
+    initials.textContent=Array.from(customerProfile.name || customerProfile.email || "M")[0].toUpperCase();
+    if(customerProfile.picture) {
+      avatar.referrerPolicy="no-referrer";
+      avatar.onload=()=>{if(customerProfile?.picture===avatar.getAttribute("src")){avatar.hidden=false;initials.hidden=true;}};
+      avatar.onerror=()=>{avatar.hidden=true;initials.hidden=false;};
+      avatar.src=customerProfile.picture;
+    }
+  } else { avatar.removeAttribute("src"); }
+  serviceElement("customer-account").hidden=!signedIn;
+  serviceElement("customer-profile-text").textContent=signedIn ? customerProfile.name+" · "+customerProfile.email : "";
+  serviceElement("registration-manage").hidden=!signedIn;
+  googleSignIn.hidden=signedIn;
+}
+window.clearCustomerAccount = () => {
+  customerSessionVersion++;customerSession=null;customerProfile=null;
+  try{localStorage.removeItem(customerSessionKey);}catch{}
+  updateCustomerButton();
 };
+window.invalidateCustomerSession = token => {
+  if(!token || customerSession?.token===token) window.clearCustomerAccount();
+};
+window.applyCustomerProfile = profile => {
+  if(window.customerSessionToken() && profile?.id){customerProfile=profile;updateCustomerButton();}
+};
+window.restoreCustomerSession = async () => {
+  if(!window.customerSessionToken()) return;
+  const version=customerSessionVersion;
+  registrationFallback.disabled=true;registrationFallback.setAttribute("aria-busy","true");
+  try {
+    const result=await api({action:"auth.session"});
+    if(version!==customerSessionVersion) return;
+    window.applyCustomerProfile(result.user);
+    if(!serviceElement("customer").value && result.user.name)serviceElement("customer").value=result.user.name;
+  } catch(error) {
+    if(version===customerSessionVersion && error.code==="AUTH_REQUIRED")window.clearCustomerAccount();
+  } finally {registrationFallback.disabled=false;registrationFallback.removeAttribute("aria-busy");}
+};
+window.openCustomerRegistration = () => {
+  if(customerProfile && !window.customerSessionToken())window.clearCustomerAccount();
+  if(customerProfile || window.customerSessionToken()) {window.openCustomerReservations();return;}
+  registrationTitle.textContent="Ro‘yxatdan o‘tish";
+  serviceElement("registration-manage").hidden=true;googleSignIn.hidden=false;
+  if(!registrationDialog.open)registrationDialog.showModal();
+};
+registrationFallback.onclick=window.openCustomerRegistration;
+serviceElement("registration-manage").onclick=()=>{registrationDialog.close();window.openCustomerReservations();};
+serviceElement("customer-logout").onclick=async()=>{
+  const button=serviceElement("customer-logout");button.disabled=true;
+  try{await api({action:"auth.logout"});}catch{}
+  finally{
+    window.clearCustomerAccount();
+    tableOrderRecord=null;serviceElement("table-order-bar").hidden=true;
+    order.clear();orderNotes.clear();renderOrder();
+    serviceElement("customer").value="";serviceElement("phone").value="";
+    serviceElement("reservations").close();button.disabled=false;render();
+  }
+};
+updateCustomerButton();
 let googleConfigured = false;
 window.setupGoogleRegistration = clientId => {
-  if (googleConfigured) return;
-  if (!clientId) {
-    registrationMessage.textContent = "Google orqali kirish hali ulanmagan.";
-    return;
-  }
-  googleConfigured = true;
-  googleSignIn.setAttribute("aria-busy","true");
-  const script = document.createElement("script");
-  script.src = "https://accounts.google.com/gsi/client";
-  script.async = true;
-  let observer;
-  let timer;
-  const failed = () => {
-    clearTimeout(timer);
-    observer?.disconnect();
-    googleConfigured = false;
-    googleSignIn.replaceChildren();
-    googleSignIn.removeAttribute("aria-busy");
-    registrationFallback.hidden = false;
-    registrationTitle.textContent = "Google orqali ro‘yxatdan o‘tish";
-    registrationMessage.textContent = "Google tugmasini yuklab bo‘lmadi. Internet aloqasini tekshirib, sahifani yangilang.";
-    script.remove();
+  if(googleConfigured)return;
+  if(!clientId){registrationMessage.textContent="Google orqali kirish hozircha mavjud emas. Keyinroq qayta urinib ko‘ring.";return;}
+  googleConfigured=true;googleSignIn.setAttribute("aria-busy","true");
+  const script=document.createElement("script");script.src="https://accounts.google.com/gsi/client";script.async=true;
+  let observer,timer;
+  const failed=()=>{
+    clearTimeout(timer);observer?.disconnect();googleConfigured=false;googleSignIn.replaceChildren();googleSignIn.removeAttribute("aria-busy");
+    registrationMessage.textContent="Google tugmasi yuklanmadi. Internetni tekshirib, sahifani yangilang.";script.remove();
   };
-  script.onerror = failed;
-  timer = setTimeout(failed,15000);
-  script.onload = () => {
-    try {
-      const identity = window.google?.accounts?.id;
-      if (!identity) throw Error("Google kirish xizmati yuklanmadi.");
-      identity.initialize({client_id:clientId,callback:async response => {
-        registrationTitle.textContent = "Ro‘yxatdan o‘tilmoqda";
-        registrationMessage.textContent = "Google hisobingiz tekshirilmoqda…";
-        if (!registrationDialog.open) registrationDialog.showModal();
-        try {
-          const result = await api({action:"auth.google",credential:response.credential});
-          if (result.ok !== true) throw Error("Ro‘yxatdan o‘tish tasdiqlanmadi.");
-          registrationTitle.textContent = "Ro‘yxatdan o‘tdingiz!";
-          registrationMessage.textContent = result.message || "Siz ro‘yxatdan o‘tdingiz! Bizning doimiy mijozimizga aylandingiz. Sizga rahmat!";
-          if (result.name) serviceElement("customer").value = result.name;
-        } catch (error) {
-          registrationTitle.textContent = "Qayta urinib ko‘ring";
-          registrationMessage.textContent = error.message;
-        }
+  script.onerror=failed;timer=setTimeout(failed,15000);
+  script.onload=()=>{
+    try{
+      const identity=window.google?.accounts?.id;if(!identity)throw Error("Google yuklanmadi.");
+      identity.initialize({client_id:clientId,use_fedcm_for_button:true,button_auto_select:false,callback:async response=>{
+        registrationTitle.textContent="Hisob tekshirilmoqda";registrationMessage.textContent="Bir oz kuting…";
+        if(!registrationDialog.open)registrationDialog.showModal();
+        try{
+          const result=await api({action:"auth.google",credential:response.credential});
+          if(!/^[a-f0-9]{64}$/.test(result.sessionToken || "") || !result.user?.id || !(result.sessionExpiresAt>Date.now()))throw Error("Kabinet ulanishini tasdiqlab bo‘lmadi. Qayta urinib ko‘ring.");
+          customerSessionVersion++;customerSession={token:result.sessionToken,expiresAt:result.sessionExpiresAt};customerProfile=result.user;
+          try{localStorage.setItem(customerSessionKey,JSON.stringify(customerSession));}catch{}
+          updateCustomerButton();
+          registrationTitle.textContent="Xush kelibsiz!";registrationMessage.textContent=result.message;
+          if(result.user.name)serviceElement("customer").value=result.user.name;
+        }catch(error){registrationTitle.textContent="Qayta urinib ko‘ring";registrationMessage.textContent=error.message;}
       }});
-      const rendered = () => {
-        if (!googleSignIn.querySelector("iframe, [role=button]")) return;
-        clearTimeout(timer);
-        observer?.disconnect();
-        googleSignIn.removeAttribute("aria-busy");
-        registrationFallback.hidden = true;
-        registrationMessage.textContent = "Sahifa yuqorisidagi Google belgisini bosib, hisobingizni tanlang.";
+      const rendered=()=>{
+        if(!googleSignIn.querySelector("iframe, [role=button]"))return;
+        clearTimeout(timer);observer?.disconnect();googleSignIn.removeAttribute("aria-busy");
+        registrationMessage.textContent="Google hisobingiz bilan kiring. Keyin o‘z bron va buyurtmalaringizni kabinetingizdan boshqarasiz.";
       };
-      observer = new MutationObserver(rendered);
-      observer.observe(googleSignIn,{childList:true,subtree:true});
-      identity.renderButton(googleSignIn,{type:"icon",theme:"outline",size:"large",shape:"circle",text:"signup_with"});
-      rendered();
-    } catch (error) {
-      failed();
-    }
+      observer=new MutationObserver(rendered);observer.observe(googleSignIn,{childList:true,subtree:true});
+      identity.renderButton(googleSignIn,{type:"standard",theme:"outline",size:"large",shape:"pill",width:280,text:"signup_with"});rendered();
+    }catch{failed();}
   };
   document.head.append(script);
 };

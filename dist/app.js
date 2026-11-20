@@ -10,6 +10,20 @@ const reserve = byId("reserve");
 const dialog = byId("reservations");
 const list = byId("reservation-list");
 const key = "anjir-shared-bookings";
+const tashkentDay = () => new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Tashkent"}).format(new Date());
+let availabilityCheckedAt = 0;
+let menuFingerprint = "";
+function syncVisitDay() {
+  const today = tashkentDay();
+  date.min = today;
+  if (!date.value || date.value < today) { date.value = today; selected = null; return true; }
+  return false;
+}
+function resumeAvailability() {
+  if (submitting || document.visibilityState === "hidden") return;
+  const movedDay = syncVisitDay();
+  if (movedDay || (!loading && Date.now() - availabilityCheckedAt > 60000)) refresh("",true);
+}
 const startAt = (day, hour) => Date.parse(day + "T" + hour + ":00+05:00");
 let settings;
 let busy = [];
@@ -39,7 +53,10 @@ for (const button of hallButtons) {
 }
 
 function history() {
-  try { return JSON.parse(localStorage.getItem(key) || "[]"); }
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "[]");
+    return Array.isArray(value) ? value.filter(r => r && typeof r.id === "string" && typeof r.day === "string") : [];
+  }
   catch { return []; }
 }
 
@@ -52,13 +69,25 @@ async function api(data) {
   if (!window.BOOKING_ENDPOINT) throw Error("Bron tizimi ulanmoqda.");
   const url = new URL(window.BOOKING_ENDPOINT);
   if (!data) url.searchParams.set("day", date.value);
-  const result = await fetch(url, {
-    ...(data && {method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify(data)}),
-    signal: AbortSignal.timeout(20000)
-  });
+  const sessionToken = window.customerSessionToken?.() || "";
+  const payload = data ? {...data,...(sessionToken && {session:sessionToken})} : null;
+  let result;
+  try {
+    result = await fetch(url, {
+      ...(data && {method:"POST", headers:{"Content-Type":"text/plain"}, body:JSON.stringify(payload)}),
+      signal: AbortSignal.timeout(20000)
+    });
+  } catch (error) {
+    if (["TimeoutError","AbortError"].includes(error.name)) throw Error("Server vaqtida javob bermadi. Qayta urinib ko‘ring.");
+    throw Error("Serverga ulanib bo‘lmadi. Internet aloqasini tekshirib, qayta urinib ko‘ring.");
+  }
   if (!result.ok) throw Error("Bron serveriga ulanib bo‘lmadi.");
   const body = await result.json();
-  if (!body.ok) throw Error(body.error);
+  if (!body.ok) {
+    const error=Error(body.error || "Amal bajarilmadi.");error.code=body.code;
+    if(body.code==="AUTH_REQUIRED")window.invalidateCustomerSession?.(sessionToken);
+    throw error;
+  }
   return body;
 }
 
@@ -125,13 +154,13 @@ function render() {
     preview.className = "outline";
     preview.dataset.tablePreview = t.id;
     preview.setAttribute("aria-label",t.name + "-stolning 360° ko‘rinishini ochish");
-    preview.textContent = "360° ko‘rish";
+    preview.textContent = "360°";
     preview.onclick = () => window.previewTable(t);
     booth.append(furniture,preview);
     map.append(booth);
     if (focused === button.dataset.tableId && !button.disabled) button.focus();
   }
-  reserve.disabled = loading || submitting || selected === null;
+  reserve.disabled = loading || submitting || selected === null || tableOrderRecord !== null;
   byId("selection").textContent = selected === null ? (loading ? "360° ko‘rinishni ochishingiz mumkin. Bron uchun bandlik tekshirilmoqda." : "Xaritadan stol tanlang") :
     table.name + "-stol tanlandi. " + (tableHall(table) === "vip" ? "VIP zal" : "Asosiy zal") +
     " · " + tableRow(table) + "-qator · " + table.capacity +
@@ -139,6 +168,7 @@ function render() {
 }
 
 async function refresh(message = "", autoNext = false) {
+  syncVisitDay();
   const current = ++request;
   const previous = time.value;
   loading = true;
@@ -186,11 +216,13 @@ async function refresh(message = "", autoNext = false) {
     } else hero.style.removeProperty("--hero-image");
     if (Array.isArray(data.menu)) {
       window.PREORDER_ENABLED = true;
-      renderMenu(data.menu);
+      const fingerprint = JSON.stringify(data.menu);
+      if (fingerprint !== menuFingerprint) { renderMenu(data.menu); menuFingerprint = fingerprint; }
     }
     byId("duration").textContent = "Bron davomiyligi · " + settings.duration + " daqiqa";
     feedback.textContent = message || (validTimes.length ? "" : "Bu sana uchun boshqa vaqt qolmadi.");
     loading = false;
+    availabilityCheckedAt = Date.now();
   } catch (error) {
     if (request !== current) return;
     feedback.textContent = [message,"Bandlikni tekshirib bo‘lmadi. 360° ko‘rinish ochiq, bron uchun qayta urinib ko‘ring."].filter(Boolean).join(" ");
@@ -199,15 +231,19 @@ async function refresh(message = "", autoNext = false) {
   render();
 }
 
-date.min = new Intl.DateTimeFormat("sv-SE",{timeZone:"Asia/Tashkent"}).format(new Date());
-date.value = date.min;
+syncVisitDay();
+window.addEventListener("focus",resumeAvailability);
+document.addEventListener("visibilitychange",resumeAvailability);
+setInterval(resumeAvailability,60000);
 date.onchange = () => { selected = null; refresh(); };
 retryAvailability.onclick = () => refresh();
 time.onchange = guests.onchange = () => { if (!loading) feedback.textContent = ""; render(); };
 
 byId("booking").onsubmit = async event => {
   event.preventDefault();
+  if (tableOrderRecord) { feedback.textContent = "Qo‘shimcha buyurtmani «Oshxonaga yuborish» tugmasi bilan yuboring."; return; }
   if (reserve.disabled) return;
+  if(!window.customerAccountProfile?.()) { window.openCustomerRegistration();feedback.textContent="Bron qilish uchun Google orqali ro‘yxatdan o‘ting.";return; }
   const table = settings.tables.find(t => t.id === selected);
   const booking = {action:"book",table:table.id,day:date.value,hour:time.value,
     guests:Number(guests.value),name:byId("customer").value.trim(),phone:byId("phone").value.trim(),
@@ -216,15 +252,18 @@ byId("booking").onsubmit = async event => {
   if (retryData !== fingerprint) retryId = crypto.randomUUID();
   retryData = fingerprint;
   submitting = true;
+  window.ORDER_SUBMITTING = true;
+  renderOrder();
   render();
   feedback.textContent = "Bron saqlanmoqda…";
   let message;
   try {
     const result = await api({...booking,id:retryId});
     const record = {id:retryId,table:table.name,day:booking.day,hour:booking.hour,guests:booking.guests,status:result.status};
-    remember([...history().filter(item => item.id !== record.id),record]);
+    // Signed-in bookings are loaded from the server for their owner only.
     retryData = null;
     order.clear();
+    orderNotes.clear();
     renderOrder();
     byId("order-feedback").textContent = "";
     byId("order-link").hidden = true;
@@ -237,6 +276,8 @@ byId("booking").onsubmit = async event => {
     message = error.message;
   }
   submitting = false;
+  window.ORDER_SUBMITTING = false;
+  renderOrder();
   await refresh(message);
 };
 
@@ -333,9 +374,25 @@ function showConfirmation(booking, table, result,bookingId) {
   byId("confirmation").showModal();
 }
 
-function renderHistory() {
-  const records = history();
+let historyRequest=0;
+async function renderHistory() {
+  const current=++historyRequest;
+  const token=window.customerSessionToken?.() || "";
+  let records=history();
   list.replaceChildren();
+  if(token) {
+    list.textContent="Bronlaringiz yuklanmoqda…";
+    try{
+      const result=await api({action:"account.list"});
+      if(current!==historyRequest || token!==(window.customerSessionToken?.() || ""))return;
+      records=result.bookings;window.applyCustomerProfile?.(result.user);
+    }catch(error){
+      if(current!==historyRequest)return;
+      list.textContent=error.message;
+      const retry=document.createElement("button");retry.className="outline";retry.textContent="Qayta urinish";retry.onclick=()=>renderHistory();list.append(retry);return;
+    }
+    list.replaceChildren();
+  }
   if (!records.length) list.textContent = "Hozircha bronlar yo‘q.";
   for (const record of records) {
     const row = document.createElement("div");
@@ -360,7 +417,9 @@ function renderHistory() {
     addOrder.className = "outline";
     addOrder.textContent = "Qo‘shimcha buyurtma";
     addOrder.onclick = () => window.openTableOrder(record);
-    addOrder.hidden = !window.TABLE_ORDERS_ENABLED;
+    const visitStart=startAt(record.day,record.hour);
+    const visitEnd=visitStart+(record.duration || settings?.duration || 120)*60000;
+    addOrder.hidden = !window.TABLE_ORDERS_ENABLED || record.status!=="Band" || Date.now()<visitStart || Date.now()>visitEnd;
     row.append(addOrder);
     if (startAt(record.day,record.hour) > Date.now()) {
       const cancel = document.createElement("button");
@@ -384,11 +443,13 @@ function renderHistory() {
   }
 }
 
-byId("history").onclick = () => { renderHistory(); dialog.showModal(); };
+window.openCustomerReservations = () => { renderHistory(); if(!dialog.open)dialog.showModal(); };
+byId("history").onclick = window.openCustomerReservations;
 byId("manage-confirmed-booking").onclick = () => {
   byId("confirmation").close();
   renderHistory();
   dialog.showModal();
 };
 refresh("", true);
+window.restoreCustomerSession?.();
 

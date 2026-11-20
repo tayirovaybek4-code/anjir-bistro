@@ -7,7 +7,7 @@
 <script>if (!location.hash) document.documentElement.classList.add("welcome-active");</script>
 <link rel="preload" as="image" href="assets/welcome-mobile.webp" media="(max-width:700px) and (orientation:portrait)">
 <link rel="preload" as="image" href="assets/welcome-desktop.webp" media="(min-width:701px), (orientation:landscape)">
-<link rel="stylesheet" href="style.css?v=google-icon-v1">
+<link rel="stylesheet" href="style.css?v=customer-menu-20261120">
 <section class="welcome" id="welcome" aria-labelledby="welcome-title">
   <div class="welcome-copy">
     <p id="welcome-brand">Zarafshon</p>
@@ -28,7 +28,8 @@ window.addEventListener("hashchange", () => {
 <header class="site-header" id="site-start" tabindex="-1">
   <div class="shell header-inner">
     <a class="brand" href="./" id="brand-name">Zarafshon</a>
-    <nav aria-label="Asosiy menyu"><a href="#reservation">Zal · 360°</a><a href="kitchen.html">Oshpaz paneli</a><div id="google-signin" class="google-signin" title="Google orqali ro‘yxatdan o‘tish"></div><button class="outline" id="register-open" type="button">Ro‘yxatdan o‘tish</button><a href="#menu">Menyu</a><a href="#reservation">Stol band qilish</a></nav>
+    <nav aria-label="Asosiy menyu"><a href="#menu">Menyu</a><a href="#reservation">Stollar · 360°</a><a href="kitchen.html">Oshxona</a></nav>
+    <div class="header-account"><button class="outline account-button" id="register-open" type="button" aria-label="Ro‘yxatdan o‘tish"><span id="customer-register-label">Ro‘yxatdan o‘tish</span><img id="customer-avatar" alt="" hidden><span id="customer-initials" hidden></span></button></div>
   </div>
 </header>
 <main>
@@ -37,10 +38,13 @@ window.addEventListener("hashchange", () => {
   </section>
   <section id="menu" class="shell menu-section" aria-labelledby="menu-title">
     <h2 class="section-title" id="menu-title">Menyu</h2>
-    <div class="menu-featured" id="featured"></div>
-    <div id="categories" class="categories" aria-label="Taom bo‘limlari"></div>
+    <p class="menu-intro">Taomni tanlang, miqdorini belgilang va «Zakaz qilish»ni bosing.</p>
+    <div class="menu-featured" id="featured" hidden></div>
+    <div class="menu-tools"><label class="menu-search">Taom qidirish<input id="menu-search" type="search" placeholder="Taom nomi yoki bo‘limi…" autocomplete="off"></label><div id="categories" class="categories" aria-label="Taom bo‘limlari"></div></div>
+    <p id="menu-results" class="menu-results" role="status"></p>
     <div id="menu-items" class="menu-items"></div>
-    <p id="order-feedback" role="status"></p><a id="order-link" class="outline" href="#reservation" hidden>Buyurtma bilan stol band qilish</a>
+    <p id="order-feedback" role="status"></p><a id="order-link" href="#reservation" hidden>Stollarni tanlash</a>
+    <section id="menu-cart" class="menu-cart" hidden aria-label="Savatcha"><div><strong id="menu-cart-count"></strong><span id="menu-cart-total"></span></div><button id="menu-cart-open" class="cart-secondary" type="button">Savatcha</button><button id="menu-proceed" class="cart-primary" type="button">Stollarni tanlash</button></section>
   </section>
   <section class="shell" id="reservation" aria-labelledby="reservation-title">
   <div class="intro">
@@ -71,7 +75,7 @@ window.addEventListener("hashchange", () => {
         </div>
         <label>Ism<input id="customer" autocomplete="name" minlength="2" maxlength="80" required></label>
         <label>Telefon<input id="phone" type="tel" autocomplete="tel" maxlength="24" required></label>
-        <section id="preorder" hidden aria-labelledby="preorder-title"><h3 id="preorder-title">Oldindan buyurtma</h3><div id="order-lines"></div><strong id="order-total"></strong></section>
+        <button id="booking-cart" class="outline" type="button" hidden>Tanlangan taomlarni ko‘rish</button>
         <div class="selection"><span aria-hidden="true">▦</span><div><small>TANLANGAN STOL</small><strong id="selection" aria-live="polite">Xaritadan stol tanlang</strong></div></div>
         <button class="primary" id="reserve" disabled>Stolni band qilish <span aria-hidden="true">→</span></button>
         <p class="footnote" id="duration"></p>
@@ -94,7 +98,7 @@ window.addEventListener("hashchange", () => {
   </div>
 </section>
 <footer class="shell"><span id="footer-brand">Zarafshon</span><a href="#location">Manzil</a><a href="https://t.me/Aybek_Tairov_bot">Telegram orqali bron</a><a href="admin.html">Admin panel</a><a href="kitchen.html">Oshxona</a><a href="privacy.html">Maxfiylik</a></footer>
-<dialog id="reservations"><div class="card-top"><h2>Bronlarim</h2><form method="dialog"><button class="outline" aria-label="Yopish">✕</button></form></div><div id="reservation-list"></div></dialog>
+<dialog id="reservations"><div class="card-top"><h2>Mening bronlarim</h2><form method="dialog"><button class="outline" aria-label="Yopish">✕</button></form></div><section id="customer-account" hidden><p id="customer-profile-text"></p><button id="customer-logout" class="outline" type="button">Hisobdan chiqish</button></section><div id="reservation-list"></div></dialog>
 <dialog id="confirmation" aria-labelledby="confirmation-title">
   <form method="dialog" class="confirmation-close"><button class="outline" aria-label="Oynani yopish">✕ Yopish</button></form>
   <p class="confirmation-mark" aria-hidden="true">✓</p>
@@ -120,18 +124,19 @@ window.addEventListener("hashchange", () => {
     <form method="dialog"><button class="hero-button">Tayyor</button></form>
   </div>
 </dialog>
-<dialog id="registration"><form method="dialog"><button class="outline">Yopish ✕</button></form><h2 id="registration-title">Doimiy mijozimiz bo‘ling</h2><p id="registration-message" role="status">Google orqali kirish sozlamalari yuklanmoqda.</p></dialog>
+<dialog id="cart-dialog" aria-labelledby="cart-title"><div class="card-top"><h2 id="cart-title">Savatcha</h2><form method="dialog"><button class="outline" aria-label="Savatchani yopish">✕</button></form></div><section id="preorder" hidden aria-labelledby="preorder-title"><h3 id="preorder-title">Oldindan buyurtma</h3><div id="order-lines"></div><strong id="order-total"></strong></section><p id="cart-guidance" class="cart-guidance"></p><button id="cart-continue" class="primary" type="button">Stollarni tanlash</button></dialog>
+<dialog id="registration" aria-labelledby="registration-title"><form method="dialog" class="registration-close"><button class="outline" aria-label="Ro‘yxatdan o‘tish oynasini yopish">✕</button></form><h2 id="registration-title">Ro‘yxatdan o‘tish</h2><p id="registration-message" role="status">Google hisobingiz bilan kiring.</p><div id="google-signin" class="google-signin"></div><button id="registration-manage" class="primary" type="button" hidden>Kabinetimga kirish</button><a class="privacy-link" href="privacy.html" target="_blank" rel="noopener">Maxfiylik haqida</a></dialog>
 <dialog id="table-preview" class="scene-dialog"><div class="scene-heading"><div><p class="scene-eyebrow">ZARAFSHON · VIRTUAL TASHRIF</p><h2 id="preview-title">Stol · 360°</h2></div><form method="dialog"><button class="scene-icon" aria-label="Yopish">✕</button></form></div><div class="scene-viewport"><canvas id="table-canvas" aria-label="Stolning aylantiriladigan uch o‘lchamli modeli"></canvas><div id="scene-labels" aria-hidden="true"></div><div class="scene-badge">3D MODEL <span>•</span> 360°</div><p id="scene-hint">Aylantirish uchun suring · Yaqinlashtirish uchun ikki barmoqdan foydalaning</p><p id="scene-error" role="status" hidden></p></div><div class="scene-controls"><label>Aylantirish <output id="rotation-value">0°</output><input id="table-rotation" type="range" min="0" max="360" value="0"></label><div class="scene-buttons"><button id="scene-zoom-out" class="scene-icon" aria-label="Uzoqlashtirish">−</button><button id="scene-zoom-in" class="scene-icon" aria-label="Yaqinlashtirish">+</button><button id="scene-auto" class="scene-icon" aria-pressed="false">↻ Avto</button><button id="scene-reset" class="scene-icon">Tiklash</button><button id="scene-full" class="scene-icon" aria-label="To‘liq ekran">⛶</button></div></div><p class="scene-disclaimer">Stol va zalning namunaviy 3D modeli. Haqiqiy joylashuv va interyer farq qilishi mumkin.</p></dialog>
 <section id="table-order-bar" class="table-order-bar" hidden><strong id="table-order-label"></strong><button class="primary" id="send-table-order" type="button">Oshxonaga yuborish</button><button class="outline" id="leave-table-order" type="button">Chiqish</button><p id="table-order-message" role="status"></p></section>
-<script src="table-scene.js" defer></script>
-<script src="table-service.js?v=google-icon-v1" defer></script>
+<script src="table-scene.js?v=customer-menu-20261120" defer></script>
+<script src="table-service.js?v=customer-menu-20261120" defer></script>
 <script src="config.js" defer></script>
 <script src="menu-data.js" defer></script>
 <script src="dish-photos.js" defer></script>
 <script src="photos.js" defer></script>
-<script src="menu.js" defer></script>
+<script src="menu.js?v=customer-menu-20261120" defer></script>
 <script src="hall-tables.js?v=360" defer></script>
-<script src="app.js?v=table-360-v2" defer></script>
+<script src="app.js?v=customer-menu-20261120" defer></script>
 </html>
 
 
