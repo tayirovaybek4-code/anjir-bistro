@@ -421,7 +421,7 @@ async function renderHistory() {
     const visitEnd=visitStart+(record.duration || settings?.duration || 120)*60000;
     addOrder.hidden = !window.TABLE_ORDERS_ENABLED || record.status!=="Band" || Date.now()<visitStart || Date.now()>visitEnd;
     row.append(addOrder);
-    if (startAt(record.day,record.hour) > Date.now()) {
+    if (["Band","Kutilmoqda"].includes(record.status) && startAt(record.day,record.hour) > Date.now()) {
       const cancel = document.createElement("button");
       cancel.className = "outline";
       cancel.textContent = "Bekor qilish";
