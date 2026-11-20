@@ -148,8 +148,8 @@ function dishCard(item, withPhoto) {
   }
   if (window.PREORDER_ENABLED) {
     const actions=document.createElement("div");actions.className="dish-actions";
-    const submit=document.createElement("button");submit.type="button";submit.className="dish-order";submit.textContent="Zakaz qilish";
-    submit.setAttribute("aria-label",item.name+" — zakaz qilish");
+    const submit=document.createElement("button");submit.type="button";submit.className="dish-order";submit.textContent="Buyurtma berish";
+    submit.setAttribute("aria-label",item.name+" — buyurtma berish");
     submit.onclick=()=>{
       if(window.ORDER_SUBMITTING)return;
       if(!order.has(item.id)){if(order.size>=30)return;order.set(item.id,1);}

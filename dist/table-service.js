@@ -147,7 +147,7 @@ window.setupGoogleRegistration = clientId => {
   script.onload=()=>{
     try{
       const identity=window.google?.accounts?.id;if(!identity)throw Error("Google yuklanmadi.");
-      identity.initialize({client_id:clientId,use_fedcm_for_button:true,button_auto_select:false,callback:async response=>{
+      identity.initialize({client_id:clientId,use_fedcm_for_button:false,ux_mode:"popup",button_auto_select:false,callback:async response=>{
         registrationTitle.textContent="Hisob tekshirilmoqda";registrationMessage.textContent="Bir oz kuting…";
         if(!registrationDialog.open)registrationDialog.showModal();
         try{
