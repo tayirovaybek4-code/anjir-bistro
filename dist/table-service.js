@@ -145,7 +145,7 @@ window.setupGoogleRegistration = clientId => {
       sessionStorage.setItem("zarafshon-google-flow",JSON.stringify(flow));
       sessionStorage.setItem("zarafshon-order-draft",JSON.stringify(orderPayload()));
       const url=new URL("https://accounts.google.com/o/oauth2/v2/auth");
-      url.search=new URLSearchParams({client_id:clientId,redirect_uri:new URL("google-callback.html",location.href).href.split("?")[0].split("#")[0],response_type:"id_token",scope:"openid email profile",nonce:flow.nonce,state:flow.state,prompt:"select_account"}).toString();
+      url.search=new URLSearchParams({client_id:clientId,redirect_uri:"https://tayirovaybek4-code.github.io/anjir-bistro/google-callback.html",response_type:"id_token",scope:"openid email profile",nonce:flow.nonce,state:flow.state,prompt:"select_account"}).toString();
       location.assign(url.href);
     }catch{registrationMessage.textContent="Brauzerda sayt ma’lumotlarini saqlashga ruxsat bering va qayta urinib ko‘ring.";}
   };
