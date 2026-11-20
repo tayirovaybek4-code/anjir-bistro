@@ -4,6 +4,14 @@ const catalog = document.querySelector("#menu-items");
 const categories = document.querySelector("#categories");
 const order = new Map();
 const orderNotes = new Map();
+try {
+  const draft=JSON.parse(sessionStorage.getItem("zarafshon-order-draft") || "[]");
+  sessionStorage.removeItem("zarafshon-order-draft");
+  if(Array.isArray(draft)) for(const item of draft.slice(0,30)) {
+    if(typeof item.id==="string" && Number.isInteger(item.quantity) && item.quantity>0 && item.quantity<=20){order.set(item.id,item.quantity);orderNotes.set(item.id,String(item.note || "").slice(0,300));}
+  }
+}catch{}
+
 const money = value => new Intl.NumberFormat("uz-UZ").format(value) + " so‘m";
 let menuItems = window.MENU_ITEMS;
 let activeCategory = menuItems[0]?.category || "__all";

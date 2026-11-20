@@ -143,6 +143,7 @@ window.setupGoogleRegistration = clientId => {
       const random=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),v=>v.toString(16).padStart(2,"0")).join("");
       const flow={state:random(),nonce:random(),expiresAt:Date.now()+600000};
       sessionStorage.setItem("zarafshon-google-flow",JSON.stringify(flow));
+      sessionStorage.setItem("zarafshon-order-draft",JSON.stringify(orderPayload()));
       const url=new URL("https://accounts.google.com/o/oauth2/v2/auth");
       url.search=new URLSearchParams({client_id:clientId,redirect_uri:new URL("google-callback.html",location.href).href.split("?")[0].split("#")[0],response_type:"id_token",scope:"openid email profile",nonce:flow.nonce,state:flow.state,prompt:"select_account"}).toString();
       location.assign(url.href);
